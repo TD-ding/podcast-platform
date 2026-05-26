@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>发布播客 - PodWave</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="/" class="nav-brand">🎙 PodWave</a>
+      <div class="nav-links">
+        <a href="/">动态</a>
+        <a href="/my.html">我的播客</a>
+        <button onclick="logout()" class="btn btn-sm btn-outline">退出</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container publish-page">
+    <h2>发布播客</h2>
+    <div class="card">
+      <div id="error" class="error-msg"></div>
+      <form id="publishForm">
+        <div class="form-group">
+          <label>音频文件</label>
+          <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">🎵</div>
+            <div class="upload-text">点击或拖拽上传音频文件（MP3, WAV, OGG, M4A, AAC, FLAC）</div>
+            <div id="fileName" class="file-name"></div>
+          </div>
+          <input type="file" id="audioFile" accept=".mp3,.wav,.ogg,.m4a,.aac,.flac" hidden>
+        </div>
+        <div class="form-group">
+          <label>标题</label>
+          <input type="text" id="title" class="form-input" placeholder="给你的播客起个标题" required>
+        </div>
+        <div class="form-group">
+          <label>描述</label>
+          <textarea id="description" class="form-textarea" placeholder="描述一下这期播客的内容（可选）"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary" id="submitBtn">发布</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script>
+    if (!isLoggedIn()) {
+      location.href = "/login.html";
+    }
+
+    function logout() {
+      clearUser();
+      location.href = "/login.html";
+    }
+
+    const uploadArea = document.getElementById("uploadArea");
+    const fileInput = document.getElementById("audioFile");
+
+    uploadArea.addEventListener("click", () => fileInput.click());
+    uploadArea.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      uploadArea.classList.add("dragover");
+    });
+    uploadArea.addEventListener("dragleave", () => uploadArea.classList.remove("dragover"));
+    uploadArea.addEventListener("drop", (e) => {
+      e.preventDefault();
+      uploadArea.classList.remove("dragover");
+      if (e.dataTransfer.files.length) {
+        fileInput.files = e.dataTransfer.files;
+        showFileName(e.dataTransfer.files[0].name);
+      }
+    });
+    fileInput.addEventListener("change", () => {
+      if (fileInput.files.length) {
+        showFileName(fileInput.files[0].name);
+      }
+    });
+
+    function showFileName(name) {
+      document.getElementById("fileName").textContent = "已选择: " + name;
+    }
+
+    document.getElementById("publishForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const errorEl = document.getElementById("error");
+      errorEl.style.display = "none";
+
+      if (!fileInput.files.length) {
+        errorEl.textContent = "请选择音频文件";
+        errorEl.style.display = "block";
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("audio", fileInput.files[0]);
+      formData.append("title", document.getElementById("title").value.trim());
+      formData.append("description", document.getElementById("description").value.trim());
+
+      const btn = document.getElementById("submitBtn");
+      btn.disabled = true;
+      btn.textContent = "发布中...";
+
+      try {
+        const token = getToken();
+        const res = await fetch("/api/podcasts", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "发布失败");
+        location.href = "/";
+      } catch (err) {
+        errorEl.textContent = err.message;
+        errorEl.style.display = "block";
+        btn.disabled = false;
+        btn.textContent = "发布";
+      }
+    });
+  </script>
+</body>
+</html>

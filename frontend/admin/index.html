@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>管理后台 - PodWave</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="/" class="nav-brand">🎙 PodWave</a>
+      <div class="nav-links">
+        <a href="/">返回前台</a>
+        <button onclick="logout()" class="btn btn-sm btn-outline">退出</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="admin-layout">
+    <div class="admin-sidebar">
+      <button class="admin-nav-item active" onclick="switchTab('dashboard')">📊 仪表盘</button>
+      <button class="admin-nav-item" onclick="switchTab('users')">👥 用户管理</button>
+      <button class="admin-nav-item" onclick="switchTab('podcasts')">🎙 内容审核</button>
+    </div>
+    <div class="admin-content">
+      <div id="tab-dashboard">
+        <h2 style="margin-bottom:20px;">仪表盘</h2>
+        <div class="stat-grid" id="stats"></div>
+      </div>
+      <div id="tab-users" style="display:none;">
+        <h2 style="margin-bottom:20px;">用户管理</h2>
+        <table class="admin-table" id="usersTable">
+          <thead>
+            <tr><th>ID</th><th>用户名</th><th>角色</th><th>状态</th><th>注册时间</th><th>操作</th></tr>
+          </thead>
+          <tbody id="usersBody"></tbody>
+        </table>
+      </div>
+      <div id="tab-podcasts" style="display:none;">
+        <h2 style="margin-bottom:20px;">内容审核</h2>
+        <table class="admin-table" id="podcastsTable">
+          <thead>
+            <tr><th>ID</th><th>标题</th><th>作者</th><th>状态</th><th>发布时间</th><th>操作</th></tr>
+          </thead>
+          <tbody id="podcastsBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script>
+    if (!isLoggedIn() || !isAdmin()) {
+      location.href = "/";
+    }
+
+    function logout() {
+      clearUser();
+      location.href = "/login.html";
+    }
+
+    function switchTab(name) {
+      document.querySelectorAll("[id^='tab-']").forEach(t => t.style.display = "none");
+      document.getElementById(`tab-${name}`).style.display = "block";
+      document.querySelectorAll(".admin-nav-item").forEach(b => b.classList.remove("active"));
+      event.target.classList.add("active");
+      if (name === "dashboard") loadStats();
+      if (name === "users") loadUsers();
+      if (name === "podcasts") loadPodcasts();
+    }
+
+    async function loadStats() {
+      try {
+        const stats = await api("/api/admin/stats");
+        document.getElementById("stats").innerHTML = `
+          <div class="stat-card"><div class="stat-value">${stats.userCount}</div><div class="stat-label">用户总数</div></div>
+          <div class="stat-card"><div class="stat-value">${stats.podcastCount}</div><div class="stat-label">播客总数</div></div>
+          <div class="stat-card"><div class="stat-value">${stats.pendingCount}</div><div class="stat-label">待审核</div></div>
+          <div class="stat-card"><div class="stat-value">${stats.commentCount}</div><div class="stat-label">评论总数</div></div>`;
+      } catch (_e) {
+        // ignore
+      }
+    }
+
+    async function loadUsers() {
+      try {
+        const users = await api("/api/admin/users");
+        document.getElementById("usersBody").innerHTML = users.map(u => `
+          <tr>
+            <td>${u.id}</td>
+            <td>${escapeHtml(u.username)}</td>
+            <td><span class="badge ${u.role === 'admin' ? 'badge-admin' : 'badge-active'}">${u.role === 'admin' ? '管理员' : '用户'}</span></td>
+            <td><span class="badge ${u.status === 'active' ? 'badge-active' : 'badge-banned'}">${u.status === 'active' ? '正常' : '封禁'}</span></td>
+            <td>${formatTime(u.created_at)}</td>
+            <td>
+              ${u.role !== 'admin' ? (u.status === 'active'
+                ? `<button class="btn btn-sm btn-danger" onclick="setUserStatus(${u.id}, 'banned')">封禁</button>`
+                : `<button class="btn btn-sm btn-success" onclick="setUserStatus(${u.id}, 'active')">解封</button>`)
+              : '-'}
+            </td>
+          </tr>`).join("");
+      } catch (_e) {
+        // ignore
+      }
+    }
+
+    async function setUserStatus(id, status) {
+      try {
+        await api(`/api/admin/users/${id}/status`, {
+          method: "PUT",
+          body: { status }
+        });
+        loadUsers();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function loadPodcasts() {
+      try {
+        const podcasts = await api("/api/admin/podcasts");
+        document.getElementById("podcastsBody").innerHTML = podcasts.map(p => {
+          let badge = "badge-pending";
+          let label = "待审核";
+          if (p.status === "approved") { badge = "badge-approved"; label = "已通过"; }
+          if (p.status === "rejected") { badge = "badge-rejected"; label = "已拒绝"; }
+          return `
+            <tr>
+              <td>${p.id}</td>
+              <td>${escapeHtml(p.title)}</td>
+              <td>${escapeHtml(p.username)}</td>
+              <td><span class="badge ${badge}">${label}</span></td>
+              <td>${formatTime(p.created_at)}</td>
+              <td>
+                ${p.status !== 'approved' ? `<button class="btn btn-sm btn-success" onclick="setPodcastStatus(${p.id}, 'approved')">通过</button>` : ''}
+                ${p.status !== 'rejected' ? `<button class="btn btn-sm btn-danger" onclick="setPodcastStatus(${p.id}, 'rejected')">拒绝</button>` : ''}
+              </td>
+            </tr>`;
+        }).join("");
+      } catch (_e) {
+        // ignore
+      }
+    }
+
+    async function setPodcastStatus(id, status) {
+      try {
+        await api(`/api/admin/podcasts/${id}/status`, {
+          method: "PUT",
+          body: { status }
+        });
+        loadPodcasts();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    loadStats();
+  </script>
+</body>
+</html>
