@@ -31,6 +31,12 @@
           <label>描述</label>
           <textarea id="description" class="form-textarea" placeholder="描述一下这期播客的内容（可选）"></textarea>
         </div>
+        <div id="progress-bar-wrap" style="display:none;margin-bottom:16px;">
+          <div style="background:var(--border);border-radius:8px;height:12px;overflow:hidden;">
+            <div id="progress-bar" style="background:var(--primary);height:100%;width:0%;transition:width 0.3s;"></div>
+          </div>
+          <div id="progress-text" style="font-size:12px;color:var(--text-secondary);margin-top:4px;text-align:center;">0%</div>
+        </div>
         <button type="submit" class="btn btn-primary" id="submitBtn">发布</button>
       </form>
     </div>
@@ -84,17 +90,19 @@
       formData.append("description", document.getElementById("description").value.trim());
 
       const btn = document.getElementById("submitBtn");
+      const progressWrap = document.getElementById("progress-bar-wrap");
+      const progressBar = document.getElementById("progress-bar");
+      const progressText = document.getElementById("progress-text");
+
       btn.disabled = true;
       btn.textContent = "发布中...";
+      progressWrap.style.display = "block";
 
       try {
-        const res = await fetch("/api/podcasts", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${getToken()}` },
-          body: formData
+        await uploadWithProgress("/api/podcasts", formData, (pct) => {
+          progressBar.style.width = pct + "%";
+          progressText.textContent = pct + "%";
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "发布失败");
         alert("发布成功，等待管理员审核");
         location.href = "/my.html";
       } catch (err) {
@@ -102,6 +110,7 @@
         errorEl.style.display = "block";
         btn.disabled = false;
         btn.textContent = "发布";
+        progressWrap.style.display = "none";
       }
     });
   </script>

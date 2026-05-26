@@ -46,6 +46,7 @@
               ? '<span class="badge badge-pending">审核中</span>'
               : '<span class="badge badge-rejected">已拒绝</span>';
           const mimeType = getAudioType(p.audio_path);
+          const likedSymbol = p.liked ? "♥" : "♡";
           return `
             <div class="card podcast-card">
               <div class="podcast-header">
@@ -56,10 +57,10 @@
                 <button class="btn btn-sm btn-danger" onclick="deletePodcast(${p.id})">删除</button>
               </div>
               ${p.description ? `<div class="podcast-desc">${escapeHtml(p.description)}</div>` : ""}
-              <audio controls class="podcast-audio" preload="metadata">
+              <audio controls class="podcast-audio" preload="none">
                 <source src="${p.audio_path}" type="${mimeType}">
               </audio>
-              <div style="font-size:14px;color:var(--text-secondary);">♡ ${p.like_count || 0} · 💬 ${p.comment_count || 0}</div>
+              <div style="font-size:14px;color:var(--text-secondary);">${likedSymbol} ${p.like_count || 0} · 💬 ${p.comment_count || 0}</div>
             </div>`;
         }).join("");
 

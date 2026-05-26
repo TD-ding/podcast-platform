@@ -28,13 +28,44 @@ async function api(path, options = {}) {
   if (res.status === 401) {
     clearUser();
     alert("登录已过期，请重新登录");
-    location.href = "/login.html?redirect=" + encodeURIComponent(location.pathname);
+    location.href = "/login.html?redirect=" + encodeURIComponent(location.pathname + location.search);
     throw new Error("登录已过期");
   }
   if (!res.ok) {
     throw new Error(data.error || "请求失败");
   }
   return data;
+}
+
+function uploadWithProgress(path, formData, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", API_BASE + path);
+    const token = getToken();
+    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+
+    xhr.upload.addEventListener("progress", (e) => {
+      if (e.lengthComputable && onProgress) {
+        onProgress(Math.round((e.loaded / e.total) * 100));
+      }
+    });
+
+    xhr.addEventListener("load", () => {
+      try {
+        const data = JSON.parse(xhr.responseText);
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(data);
+        } else {
+          reject(new Error(data.error || "上传失败"));
+        }
+      } catch {
+        reject(new Error("上传失败"));
+      }
+    });
+
+    xhr.addEventListener("error", () => reject(new Error("网络错误")));
+    xhr.send(formData);
+  });
 }
 
 function getToken() {
@@ -111,17 +142,29 @@ function renderNav(containerId) {
     const user = getUser();
     const adminLink = isAdmin() ? '<a href="/admin/index.html">管理后台</a>' : '';
     el.innerHTML = `
+      <a href="/">首页</a>
       <a href="/publish.html">发布播客</a>
       <a href="/my.html">我的播客</a>
+      <a href="/settings.html">设置</a>
       ${adminLink}
       <div class="nav-user">
-        <span class="nav-username">${escapeHtml(user.username)}</span>
+        <a href="/user.html?id=${user.id}" style="font-weight:600;font-size:14px;color:var(--primary);">${escapeHtml(user.username)}</a>
         <button onclick="logout()" class="btn btn-sm btn-outline">退出</button>
       </div>`;
   } else {
     el.innerHTML = `
       <a href="/login.html">登录</a>
       <a href="/register.html">注册</a>`;
+  }
+
+  const nav = el.closest(".nav");
+  const brand = nav.querySelector(".nav-brand");
+  if (brand && !nav.querySelector(".nav-toggle")) {
+    const btn = document.createElement("button");
+    btn.className = "nav-toggle";
+    btn.textContent = "☰";
+    btn.onclick = () => el.classList.toggle("open");
+    brand.insertAdjacentElement("afterend", btn);
   }
 }
 

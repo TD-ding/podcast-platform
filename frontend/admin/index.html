@@ -11,9 +11,9 @@
 
   <div class="admin-layout">
     <div class="admin-sidebar">
-      <button class="admin-nav-item active" data-tab="dashboard" onclick="switchTab('dashboard', this)">📊 仪表盘</button>
-      <button class="admin-nav-item" data-tab="users" onclick="switchTab('users', this)">👥 用户管理</button>
-      <button class="admin-nav-item" data-tab="podcasts" onclick="switchTab('podcasts', this)">🎙 内容审核</button>
+      <button class="admin-nav-item active" onclick="switchTab('dashboard', this)">📊 仪表盘</button>
+      <button class="admin-nav-item" onclick="switchTab('users', this)">👥 用户管理</button>
+      <button class="admin-nav-item" onclick="switchTab('podcasts', this)">🎙 内容审核</button>
     </div>
     <div class="admin-content">
       <div id="tab-dashboard">
@@ -31,7 +31,7 @@
       <div id="tab-podcasts" style="display:none;">
         <h2 style="margin-bottom:20px;">内容审核</h2>
         <table class="admin-table">
-          <thead><tr><th>ID</th><th>标题</th><th>作者</th><th>状态</th><th>发布时间</th><th>操作</th></tr></thead>
+          <thead><tr><th>ID</th><th>标题</th><th>作者</th><th>音频</th><th>状态</th><th>发布时间</th><th>操作</th></tr></thead>
           <tbody id="podcastsBody"></tbody>
         </table>
         <div id="podcasts-pagination" style="text-align:center;padding:16px 0;"></div>
@@ -72,7 +72,7 @@
         document.getElementById("usersBody").innerHTML = data.rows.map(u => `
           <tr>
             <td>${u.id}</td>
-            <td>${escapeHtml(u.username)}</td>
+            <td><a href="/user.html?id=${u.id}" style="text-decoration:none;">${escapeHtml(u.username)}</a></td>
             <td><span class="badge ${u.role === 'admin' ? 'badge-admin' : 'badge-active'}">${u.role === 'admin' ? '管理员' : '用户'}</span></td>
             <td><span class="badge ${u.status === 'active' ? 'badge-active' : 'badge-banned'}">${u.status === 'active' ? '正常' : '封禁'}</span></td>
             <td>${formatTime(u.created_at)}</td>
@@ -102,11 +102,13 @@
           let badge = "badge-pending", label = "待审核";
           if (p.status === "approved") { badge = "badge-approved"; label = "已通过"; }
           if (p.status === "rejected") { badge = "badge-rejected"; label = "已拒绝"; }
+          const mimeType = getAudioType(p.audio_path);
           return `
             <tr>
               <td>${p.id}</td>
               <td>${escapeHtml(p.title)}</td>
-              <td>${escapeHtml(p.username)}</td>
+              <td><a href="/user.html?id=${p.user_id}" style="text-decoration:none;">${escapeHtml(p.username)}</a></td>
+              <td><audio controls preload="none" style="height:32px;width:120px;"><source src="${p.audio_path}" type="${mimeType}"></audio></td>
               <td><span class="badge ${badge}">${label}</span></td>
               <td>${formatTime(p.created_at)}</td>
               <td>
