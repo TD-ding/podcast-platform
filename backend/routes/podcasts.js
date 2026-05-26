@@ -69,6 +69,21 @@ function attachUserState(data, token) {
   }
 }
 
+// POST   /                — 发布播客（audio + cover）
+// GET    /                — 已审核播客列表（分页 + 搜索）
+// GET    /hot             — 热门排行榜
+// GET    /favorites       — 收藏列表
+// GET    /my              — 我的播客
+// GET    /user/:userId    — 指定用户的已审核播客
+// GET    /:id             — 播客详情
+// POST   /:id/like        — 点赞/取消点赞
+// POST   /:id/favorite    — 收藏/取消收藏
+// POST   /:id/play        — 播放计数
+// GET    /:id/comments     — 评论列表
+// POST   /:id/comments     — 发表评论
+// DELETE /:id/comments/:cid — 删除评论
+// DELETE /:id             — 删除播客
+
 const router = Router();
 
 router.post("/", authMiddleware, mixedUpload.fields([

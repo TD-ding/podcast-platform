@@ -2,6 +2,11 @@ import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.js";
 import { getNotifications, getUnreadCount, markAllRead, markRead } from "../db/queries.js";
 
+// GET  /            — 分页通知列表
+// GET  /unread-count — 未读通知数量
+// PUT  /read-all    — 全部标为已读
+// PUT  /:id/read    — 标记单条已读
+
 const router = Router();
 
 router.get("/", authMiddleware, (req, res, next) => {

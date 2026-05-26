@@ -18,7 +18,7 @@ export function getApprovedPodcasts({ page = 1, limit = 20, keyword = "" } = {})
   const rows = db.prepare(
     `${PODCAST_SELECT} ${where} ORDER BY p.created_at DESC LIMIT ? OFFSET ?`
   ).all(...params, limit, offset);
-  const total = db.prepare(`SELECT COUNT(*) AS count FROM podcasts ${where}`).get(...params).count;
+  const total = db.prepare(`SELECT COUNT(*) AS count FROM podcasts WHERE status = 'approved'${keyword ? " AND title LIKE ?" : ""}`).get(...params).count;
   return { rows, total, page, limit, totalPages: Math.ceil(total / limit) };
 }
 
