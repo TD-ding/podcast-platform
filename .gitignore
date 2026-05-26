@@ -1,0 +1,12 @@
+node_modules/
+frontend/uploads/*.mp3
+frontend/uploads/*.wav
+frontend/uploads/*.ogg
+frontend/uploads/*.m4a
+frontend/uploads/*.aac
+frontend/uploads/*.flac
+backend/db/*.db
+backend/db/*.db-wal
+backend/db/*.db-shm
+.DS_Store
+.env

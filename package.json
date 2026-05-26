@@ -1,0 +1,36 @@
+{
+  "name": "podcast-platform",
+  "version": "1.0.0",
+  "description": "一个类似微博的播客发布平台，支持用户注册登录、发布播客音频、动态流互动（点赞/评论）、管理员后台管理。",
+  "type": "module",
+  "main": "backend/app.js",
+  "scripts": {
+    "start": "node backend/app.js",
+    "lint": "eslint .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TD-ding/podcast-platform.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/TD-ding/podcast-platform/issues"
+  },
+  "homepage": "https://github.com/TD-ding/podcast-platform#readme",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^12.10.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.1.1"
+  },
+  "devDependencies": {
+    "eslint": "^10.4.0",
+    "globals": "^17.6.0"
+  }
+}
