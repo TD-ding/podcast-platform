@@ -1,6 +1,7 @@
 import { Router } from "express";
 import db from "../db/init.js";
 import { authMiddleware, adminMiddleware } from "../middleware/auth.js";
+import { createNotification } from "../db/queries.js";
 
 const router = Router();
 
@@ -61,6 +62,15 @@ router.put("/podcasts/:id/status", (req, res, next) => {
       return res.status(404).json({ error: "播客不存在" });
     }
     db.prepare("UPDATE podcasts SET status = ? WHERE id = ?").run(status, req.params.id);
+
+    if (status === "approved") {
+      createNotification(podcast.user_id, "review", "播客审核通过",
+        `你的播客「${podcast.title}」已通过审核`, `/detail.html?id=${podcast.id}`);
+    } else if (status === "rejected") {
+      createNotification(podcast.user_id, "review", "播客审核未通过",
+        `你的播客「${podcast.title}」未通过审核`, `/my.html`);
+    }
+
     res.json({ message: "更新成功" });
   } catch (err) { next(err); }
 });

@@ -10,12 +10,14 @@
   <nav class="nav"><div class="nav-inner"><a href="/" class="nav-brand">🎙 PodWave</a><div class="nav-links" id="navLinks"></div></div></nav>
 
   <div class="container">
-    <h2 style="margin-bottom:20px;">我的播客</h2>
-    <div id="myFeed"></div>
+    <div style="display:flex;gap:12px;margin-bottom:20px;">
+      <button class="btn btn-primary" id="tab-my" onclick="switchTab('my')">我发布的</button>
+      <button class="btn btn-outline" id="tab-fav" onclick="switchTab('fav')">我的收藏</button>
+    </div>
+    <div id="feed"></div>
     <div id="pagination" style="text-align:center;padding:16px 0;"></div>
     <div id="emptyState" class="card" style="text-align:center;padding:40px;display:none;">
-      <p style="font-size:18px;color:var(--text-secondary);">你还没有发布过播客</p>
-      <a href="/publish.html" class="btn btn-primary" style="margin-top:16px;display:inline-flex;">发布第一个</a>
+      <p id="emptyText" style="font-size:18px;color:var(--text-secondary);"></p>
     </div>
   </div>
 
@@ -23,50 +25,78 @@
   <script>
     if (!isLoggedIn()) { location.href = "/login.html?redirect=" + encodeURIComponent(location.pathname); }
     renderNav("navLinks");
-    showLoading("myFeed");
 
-    async function loadMyPodcasts(page) {
+    let currentTab = "my";
+
+    function switchTab(tab) {
+      currentTab = tab;
+      document.getElementById("tab-my").className = tab === "my" ? "btn btn-primary" : "btn btn-outline";
+      document.getElementById("tab-fav").className = tab === "fav" ? "btn btn-primary" : "btn btn-outline";
+      loadContent(1);
+    }
+
+    async function loadContent(page) {
       page = page || 1;
+      showLoading("feed");
+      document.getElementById("emptyState").style.display = "none";
+      document.getElementById("pagination").innerHTML = "";
+
       try {
-        const data = await api(`/api/podcasts/my?page=${page}&limit=10`);
-        const feed = document.getElementById("myFeed");
-        const empty = document.getElementById("emptyState");
+        const url = currentTab === "my"
+          ? `/api/podcasts/my?page=${page}&limit=10`
+          : `/api/podcasts/favorites?page=${page}&limit=10`;
+        const data = await api(url);
+        const feed = document.getElementById("feed");
 
         if (data.rows.length === 0 && page === 1) {
-          empty.style.display = "block";
           feed.innerHTML = "";
-          document.getElementById("pagination").innerHTML = "";
+          document.getElementById("emptyText").textContent = currentTab === "my" ? "你还没有发布过播客" : "你还没有收藏过播客";
+          document.getElementById("emptyState").style.display = "block";
           return;
         }
 
         feed.innerHTML = data.rows.map(p => {
-          const statusBadge = p.status === "approved"
-            ? '<span class="badge badge-approved">已通过</span>'
-            : p.status === "pending"
-              ? '<span class="badge badge-pending">审核中</span>'
-              : '<span class="badge badge-rejected">已拒绝</span>';
           const mimeType = getAudioType(p.audio_path);
-          const likedSymbol = p.liked ? "♥" : "♡";
+          if (currentTab === "my") {
+            const statusBadge = p.status === "approved"
+              ? '<span class="badge badge-approved">已通过</span>'
+              : p.status === "pending"
+                ? '<span class="badge badge-pending">审核中</span>'
+                : '<span class="badge badge-rejected">已拒绝</span>';
+            return `
+              <div class="card podcast-card">
+                <div class="podcast-header">
+                  <div style="flex:1;">
+                    <div class="podcast-title">${escapeHtml(p.title)} ${statusBadge}</div>
+                    <div class="podcast-time">${formatTime(p.created_at)} · ${p.plays || 0} 次播放</div>
+                  </div>
+                  <button class="btn btn-sm btn-danger" onclick="deletePodcast(${p.id})">删除</button>
+                </div>
+                ${p.description ? `<div class="podcast-desc">${escapeHtml(p.description)}</div>` : ""}
+                ${renderCoverImage(p)}
+                <audio controls class="podcast-audio" preload="none">
+                  <source src="${p.audio_path}" type="${mimeType}">
+                </audio>
+                <div style="font-size:14px;color:var(--text-secondary);">♡ ${p.like_count || 0} · 💬 ${p.comment_count || 0}</div>
+              </div>`;
+          }
           return `
             <div class="card podcast-card">
-              <div class="podcast-header">
-                <div style="flex:1;">
-                  <div class="podcast-title">${escapeHtml(p.title)} ${statusBadge}</div>
-                  <div class="podcast-time">${formatTime(p.created_at)} · ${p.plays || 0} 次播放</div>
-                </div>
-                <button class="btn btn-sm btn-danger" onclick="deletePodcast(${p.id})">删除</button>
-              </div>
+              <a href="/detail.html?id=${p.id}" style="text-decoration:none;color:inherit;">
+                <div class="podcast-title">${escapeHtml(p.title)}</div>
+              </a>
               ${p.description ? `<div class="podcast-desc">${escapeHtml(p.description)}</div>` : ""}
+              ${renderCoverImage(p)}
               <audio controls class="podcast-audio" preload="none">
                 <source src="${p.audio_path}" type="${mimeType}">
               </audio>
-              <div style="font-size:14px;color:var(--text-secondary);">${likedSymbol} ${p.like_count || 0} · 💬 ${p.comment_count || 0}</div>
+              <div class="podcast-actions">${renderPodcastActions(p)}</div>
             </div>`;
         }).join("");
 
-        renderPagination("pagination", data, "loadMyPodcasts");
+        renderPagination("pagination", data, "loadContent");
       } catch (err) {
-        document.getElementById("myFeed").innerHTML =
+        document.getElementById("feed").innerHTML =
           `<div class="card"><p style="color:var(--danger);">加载失败：${escapeHtml(err.message)}</p></div>`;
       }
     }
@@ -75,11 +105,11 @@
       if (!confirm("确定要删除这个播客吗？")) return;
       try {
         await api(`/api/podcasts/${id}`, { method: "DELETE" });
-        loadMyPodcasts(1);
+        loadContent(1);
       } catch (err) { alert(err.message); }
     }
 
-    loadMyPodcasts(1);
+    loadContent(1);
   </script>
 </body>
 </html>

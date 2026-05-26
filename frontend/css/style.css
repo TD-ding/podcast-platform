@@ -220,6 +220,7 @@ a:hover { text-decoration: underline; }
   background: #fff3ee;
 }
 .podcast-action.liked { color: var(--danger); }
+.podcast-action.favorited { color: var(--warning); }
 
 /* Comments */
 .comments-section {

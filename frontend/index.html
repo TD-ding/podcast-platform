@@ -44,7 +44,6 @@
       try {
         let url = `/api/podcasts?page=${currentPage}&limit=10`;
         if (currentKeyword) url += `&keyword=${encodeURIComponent(currentKeyword)}`;
-
         const opts = {};
         if (isLoggedIn()) opts.headers = { Authorization: `Bearer ${getToken()}` };
         const res = await fetch(url, opts);
@@ -73,10 +72,8 @@
     function renderPodcastCard(p) {
       const initial = (p.username || "?")[0].toUpperCase();
       const mimeType = getAudioType(p.audio_path);
-      const likedClass = p.liked ? "liked" : "";
-      const likedSymbol = p.liked ? "♥" : "♡";
       return `
-        <div class="card podcast-card" data-id="${p.id}">
+        <div class="card podcast-card">
           <div class="podcast-header">
             <a href="/user.html?id=${p.user_id}" style="text-decoration:none;display:flex;align-items:center;gap:12px;">
               <div class="podcast-avatar">${initial}</div>
@@ -90,17 +87,11 @@
             <div class="podcast-title">${escapeHtml(p.title)}</div>
           </a>
           ${p.description ? `<div class="podcast-desc">${escapeHtml(p.description)}</div>` : ""}
+          ${renderCoverImage(p)}
           <audio controls class="podcast-audio" preload="none">
             <source src="${p.audio_path}" type="${mimeType}">
           </audio>
-          <div class="podcast-actions">
-            <button class="podcast-action ${likedClass}" id="like-btn-${p.id}" onclick="toggleLike(${p.id})">
-              ${likedSymbol} <span id="like-count-${p.id}">${p.like_count || 0}</span>
-            </button>
-            <a href="/detail.html?id=${p.id}" class="podcast-action" style="text-decoration:none;">
-              💬 <span id="comment-count-${p.id}">${p.comment_count || 0}</span>
-            </a>
-          </div>
+          <div class="podcast-actions">${renderPodcastActions(p)}</div>
         </div>`;
     }
 

@@ -17,6 +17,7 @@ import "./db/init.js";
 import authRoutes from "./routes/auth.js";
 import podcastRoutes from "./routes/podcasts.js";
 import adminRoutes from "./routes/admin.js";
+import notificationRoutes from "./routes/notifications.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -35,6 +36,7 @@ app.use("/uploads", express.static(path.join(frontendPath, "uploads")));
 app.use("/api/auth", authRoutes);
 app.use("/api/podcasts", podcastRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 // Global error handler
 app.use((err, _req, res, _next) => {
