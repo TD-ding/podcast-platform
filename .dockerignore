@@ -1,0 +1,9 @@
+node_modules
+.git
+.github
+.env
+*.db
+*.db-wal
+*.db-shm
+.DS_Store
+test

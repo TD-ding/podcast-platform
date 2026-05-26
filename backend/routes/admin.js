@@ -3,6 +3,13 @@ import db from "../db/init.js";
 import { authMiddleware, adminMiddleware } from "../middleware/auth.js";
 import { createNotification } from "../db/queries.js";
 
+// GET  /users/:id/status — 修改用户状态（封禁/解封）
+// GET  /users            — 分页用户列表
+// PUT  /users/:id/status — 修改用户状态（封禁/解封）
+// GET  /podcasts         — 分页播客列表（含待审核）
+// PUT  /podcasts/:id/status — 审核播客（通过/拒绝）
+// GET  /stats            — 平台统计数据
+
 const router = Router();
 
 router.use(authMiddleware, adminMiddleware);

@@ -3,6 +3,13 @@ import bcrypt from "bcryptjs";
 import db from "../db/init.js";
 import { authMiddleware, signToken } from "../middleware/auth.js";
 
+// POST /register — 注册新用户
+// POST /login    — 用户登录
+// GET  /me       — 获取当前用户信息
+// GET  /user/:id — 获取指定用户公开信息
+// PUT  /profile  — 更新个人简介
+// PUT  /password — 修改密码
+
 const USERNAME_REGEX = /^[a-zA-Z0-9_一-龥]{2,20}$/;
 
 const router = Router();

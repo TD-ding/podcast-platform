@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node backend/app.js",
     "lint": "eslint .",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "NODE_OPTIONS='--experimental-vm-modules' jest --forceExit --detectOpenHandles"
   },
   "repository": {
     "type": "git",
@@ -20,6 +20,10 @@
     "url": "https://github.com/TD-ding/podcast-platform/issues"
   },
   "homepage": "https://github.com/TD-ding/podcast-platform#readme",
+  "jest": {
+    "testMatch": ["**/test/**/*.test.js"],
+    "transform": {}
+  },
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.10.0",
@@ -31,6 +35,8 @@
   },
   "devDependencies": {
     "eslint": "^10.4.0",
-    "globals": "^17.6.0"
+    "globals": "^17.6.0",
+    "jest": "^30.4.2",
+    "supertest": "^7.2.2"
   }
 }

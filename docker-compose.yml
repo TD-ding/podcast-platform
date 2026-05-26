@@ -1,0 +1,17 @@
+services:
+  backend:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - JWT_SECRET=your-secret-key-change-in-production
+      - ADMIN_PASSWORD=change-this-admin-password
+      - PORT=3000
+      - CORS_ORIGIN=http://localhost:3000
+    volumes:
+      - uploads:/app/frontend/uploads
+      - db-data:/app/backend/db
+
+volumes:
+  uploads:
+  db-data:

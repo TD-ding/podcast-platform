@@ -5,8 +5,14 @@ frontend/uploads/*.ogg
 frontend/uploads/*.m4a
 frontend/uploads/*.aac
 frontend/uploads/*.flac
+frontend/uploads/*.jpg
+frontend/uploads/*.jpeg
+frontend/uploads/*.png
+frontend/uploads/*.gif
+frontend/uploads/*.webp
 backend/db/*.db
 backend/db/*.db-wal
 backend/db/*.db-shm
 .DS_Store
 .env
+coverage/
