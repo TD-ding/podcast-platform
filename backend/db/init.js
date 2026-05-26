@@ -67,8 +67,7 @@ db.exec(`
 
 const adminExists = db.prepare("SELECT id FROM users WHERE role = 'admin'").get();
 if (!adminExists) {
-  const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
-  const hashed = bcrypt.hashSync(adminPassword, 10);
+  const hashed = bcrypt.hashSync(process.env.ADMIN_PASSWORD, 10);
   db.prepare("INSERT INTO users (username, password, role) VALUES (?, ?, 'admin')").run("admin", hashed);
 }
 

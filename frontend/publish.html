@@ -18,7 +18,7 @@
           <label>音频文件</label>
           <div class="upload-area" id="uploadArea">
             <div class="upload-icon">🎵</div>
-            <div class="upload-text">点击或拖拽上传音频文件（MP3, WAV, OGG, M4A, AAC, FLAC）</div>
+            <div class="upload-text">点击或拖拽上传音频文件（MP3, WAV, OGG, M4A, AAC, FLAC）<br>最大 100MB</div>
             <div id="fileName" class="file-name"></div>
           </div>
           <input type="file" id="audioFile" accept=".mp3,.wav,.ogg,.m4a,.aac,.flac" hidden>
@@ -38,7 +38,7 @@
 
   <script src="/js/api.js"></script>
   <script>
-    if (!isLoggedIn()) { location.href = "/login.html"; }
+    if (!isLoggedIn()) { location.href = "/login.html?redirect=" + encodeURIComponent(location.pathname); }
     renderNav("navLinks");
 
     const uploadArea = document.getElementById("uploadArea");
@@ -72,6 +72,12 @@
         return;
       }
 
+      if (fileInput.files[0].size > 100 * 1024 * 1024) {
+        errorEl.textContent = "文件大小超过限制（最大 100MB）";
+        errorEl.style.display = "block";
+        return;
+      }
+
       const formData = new FormData();
       formData.append("audio", fileInput.files[0]);
       formData.append("title", document.getElementById("title").value.trim());
@@ -89,6 +95,7 @@
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "发布失败");
+        alert("发布成功，等待管理员审核");
         location.href = "/my.html";
       } catch (err) {
         errorEl.textContent = err.message;

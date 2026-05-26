@@ -32,7 +32,7 @@
 
   <script src="/js/api.js"></script>
   <script>
-    if (isLoggedIn()) { location.href = "/"; }
+    if (isLoggedIn()) { location.href = handleRedirect(); }
     renderNav("navLinks");
 
     document.getElementById("loginForm").addEventListener("submit", async (e) => {
@@ -44,7 +44,7 @@
       try {
         const data = await api("/api/auth/login", { method: "POST", body: { username, password } });
         setUser(data.token, data.user);
-        location.href = "/";
+        location.href = handleRedirect();
       } catch (err) {
         errorEl.textContent = err.message;
         errorEl.style.display = "block";
