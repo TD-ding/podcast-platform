@@ -26,6 +26,7 @@
           <thead><tr><th>ID</th><th>用户名</th><th>角色</th><th>状态</th><th>注册时间</th><th>操作</th></tr></thead>
           <tbody id="usersBody"></tbody>
         </table>
+        <div id="users-pagination" style="text-align:center;padding:16px 0;"></div>
       </div>
       <div id="tab-podcasts" style="display:none;">
         <h2 style="margin-bottom:20px;">内容审核</h2>
@@ -33,6 +34,7 @@
           <thead><tr><th>ID</th><th>标题</th><th>作者</th><th>状态</th><th>发布时间</th><th>操作</th></tr></thead>
           <tbody id="podcastsBody"></tbody>
         </table>
+        <div id="podcasts-pagination" style="text-align:center;padding:16px 0;"></div>
       </div>
     </div>
   </div>
@@ -48,8 +50,8 @@
       document.querySelectorAll(".admin-nav-item").forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
       if (name === "dashboard") loadStats();
-      if (name === "users") loadUsers();
-      if (name === "podcasts") loadPodcasts();
+      if (name === "users") loadUsers(1);
+      if (name === "podcasts") loadPodcasts(1);
     }
 
     async function loadStats() {
@@ -63,10 +65,11 @@
       } catch (_e) { /* ignore */ }
     }
 
-    async function loadUsers() {
+    async function loadUsers(page) {
+      page = page || 1;
       try {
-        const users = await api("/api/admin/users");
-        document.getElementById("usersBody").innerHTML = users.map(u => `
+        const data = await api(`/api/admin/users?page=${page}&limit=20`);
+        document.getElementById("usersBody").innerHTML = data.rows.map(u => `
           <tr>
             <td>${u.id}</td>
             <td>${escapeHtml(u.username)}</td>
@@ -80,6 +83,7 @@
               : '-'}
             </td>
           </tr>`).join("");
+        renderPagination("users-pagination", data, "loadUsers");
       } catch (_e) { /* ignore */ }
     }
 
@@ -90,10 +94,11 @@
       } catch (err) { alert(err.message); }
     }
 
-    async function loadPodcasts() {
+    async function loadPodcasts(page) {
+      page = page || 1;
       try {
-        const podcasts = await api("/api/admin/podcasts");
-        document.getElementById("podcastsBody").innerHTML = podcasts.map(p => {
+        const data = await api(`/api/admin/podcasts?page=${page}&limit=20`);
+        document.getElementById("podcastsBody").innerHTML = data.rows.map(p => {
           let badge = "badge-pending", label = "待审核";
           if (p.status === "approved") { badge = "badge-approved"; label = "已通过"; }
           if (p.status === "rejected") { badge = "badge-rejected"; label = "已拒绝"; }
@@ -105,11 +110,12 @@
               <td><span class="badge ${badge}">${label}</span></td>
               <td>${formatTime(p.created_at)}</td>
               <td>
-                ${p.status !== 'approved' ? `<button class="btn btn-sm btn-success" onclick="setPodcastStatus(${p.id}, 'approved')">通过</button>` : ''}
+                ${p.status !== 'approved' ? `<button class="btn btn-sm btn-success" onclick="setPodcastStatus(${p.id}, 'approved')">通过</button> ` : ''}
                 ${p.status !== 'rejected' ? `<button class="btn btn-sm btn-danger" onclick="setPodcastStatus(${p.id}, 'rejected')">拒绝</button>` : ''}
               </td>
             </tr>`;
         }).join("");
+        renderPagination("podcasts-pagination", data, "loadPodcasts");
       } catch (_e) { /* ignore */ }
     }
 

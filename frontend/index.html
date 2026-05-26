@@ -20,9 +20,8 @@
 
   <script src="/js/api.js"></script>
   <script>
-    let currentPage = 1;
-
     renderNav("navLinks");
+    showLoading("feed");
 
     async function loadFeed(page) {
       currentPage = page || 1;
@@ -33,34 +32,22 @@
 
         if (data.rows.length === 0 && currentPage === 1) {
           empty.style.display = "block";
+          feed.innerHTML = "";
           document.getElementById("pagination").innerHTML = "";
           return;
         }
 
         feed.innerHTML = data.rows.map(p => renderPodcastCard(p)).join("");
-        renderPagination(data);
+        renderPagination("pagination", data, "loadFeed");
       } catch (err) {
         document.getElementById("feed").innerHTML =
           `<div class="card"><p style="color:var(--danger);">加载失败：${escapeHtml(err.message)}</p></div>`;
       }
     }
 
-    function renderPagination(data) {
-      const el = document.getElementById("pagination");
-      if (data.totalPages <= 1) { el.innerHTML = ""; return; }
-      let html = "";
-      if (data.page > 1) {
-        html += `<button class="btn btn-outline btn-sm" onclick="loadFeed(${data.page - 1})">上一页</button> `;
-      }
-      html += `<span style="margin:0 12px;font-size:14px;color:var(--text-secondary);">${data.page} / ${data.totalPages}</span>`;
-      if (data.page < data.totalPages) {
-        html += ` <button class="btn btn-outline btn-sm" onclick="loadFeed(${data.page + 1})">下一页</button>`;
-      }
-      el.innerHTML = html;
-    }
-
     function renderPodcastCard(p) {
       const initial = (p.username || "?")[0].toUpperCase();
+      const mimeType = getAudioType(p.audio_path);
       return `
         <div class="card podcast-card" data-id="${p.id}">
           <div class="podcast-header">
@@ -73,7 +60,7 @@
           <div class="podcast-title">${escapeHtml(p.title)}</div>
           ${p.description ? `<div class="podcast-desc">${escapeHtml(p.description)}</div>` : ""}
           <audio controls class="podcast-audio" preload="metadata">
-            <source src="${p.audio_path}" type="audio/mpeg">
+            <source src="${p.audio_path}" type="${mimeType}">
           </audio>
           <div class="podcast-actions">
             <button class="podcast-action" id="like-btn-${p.id}" onclick="toggleLike(${p.id})">
@@ -95,7 +82,7 @@
     }
 
     async function toggleLike(podcastId) {
-      if (!isLoggedIn()) { location.href = "/login.html"; return; }
+      if (!isLoggedIn()) { location.href = "/login.html?redirect=" + encodeURIComponent(location.pathname); return; }
       try {
         const result = await api(`/api/podcasts/${podcastId}/like`, { method: "POST" });
         const btn = document.getElementById(`like-btn-${podcastId}`);
@@ -116,19 +103,21 @@
       try {
         const data = await api(`/api/podcasts/${podcastId}/comments?page=1&limit=50`);
         const list = document.getElementById(`comments-list-${podcastId}`);
-        list.innerHTML = data.rows.map(c => {
-          const initial = (c.username || "?")[0].toUpperCase();
-          return `
-            <div class="comment-item">
-              <div class="comment-avatar">${initial}</div>
-              <div class="comment-body">
-                <div class="comment-author">${escapeHtml(c.username)}</div>
-                <div class="comment-text">${escapeHtml(c.content)}</div>
-                <div class="comment-time">${formatTime(c.created_at)}</div>
-              </div>
-            </div>`;
-        }).join("");
+        list.innerHTML = data.rows.map(c => renderCommentItem(c)).join("");
       } catch (_e) { /* ignore */ }
+    }
+
+    function renderCommentItem(c) {
+      const initial = (c.username || "?")[0].toUpperCase();
+      return `
+        <div class="comment-item">
+          <div class="comment-avatar">${initial}</div>
+          <div class="comment-body">
+            <div class="comment-author">${escapeHtml(c.username)}</div>
+            <div class="comment-text">${escapeHtml(c.content)}</div>
+            <div class="comment-time">${formatTime(c.created_at)}</div>
+          </div>
+        </div>`;
     }
 
     async function postComment(podcastId) {
@@ -139,16 +128,7 @@
         const comment = await api(`/api/podcasts/${podcastId}/comments`, { method: "POST", body: { content } });
         input.value = "";
         const list = document.getElementById(`comments-list-${podcastId}`);
-        const initial = (comment.username || "?")[0].toUpperCase();
-        list.insertAdjacentHTML("afterbegin", `
-          <div class="comment-item">
-            <div class="comment-avatar">${initial}</div>
-            <div class="comment-body">
-              <div class="comment-author">${escapeHtml(comment.username)}</div>
-              <div class="comment-text">${escapeHtml(comment.content)}</div>
-              <div class="comment-time">${formatTime(comment.created_at)}</div>
-            </div>
-          </div>`);
+        list.insertAdjacentHTML("afterbegin", renderCommentItem(comment));
         const countEl = document.getElementById(`comment-count-${podcastId}`);
         countEl.textContent = parseInt(countEl.textContent) + 1;
       } catch (err) { alert(err.message); }

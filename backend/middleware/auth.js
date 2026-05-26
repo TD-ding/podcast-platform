@@ -23,4 +23,6 @@ export function adminMiddleware(req, res, next) {
   next();
 }
 
-export { SECRET };
+export function signToken(payload) {
+  return jwt.sign(payload, SECRET, { expiresIn: "7d" });
+}

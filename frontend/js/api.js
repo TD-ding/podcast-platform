@@ -1,5 +1,16 @@
 const API_BASE = "";
 
+const AUDIO_TYPES = {
+  ".mp3": "audio/mpeg",
+  ".wav": "audio/wav",
+  ".ogg": "audio/ogg",
+  ".m4a": "audio/mp4",
+  ".aac": "audio/aac",
+  ".flac": "audio/flac",
+};
+
+const USERNAME_REGEX = /^[a-zA-Z0-9_一-龥]{2,20}$/;
+
 async function api(path, options = {}) {
   const token = localStorage.getItem("token");
   const headers = {};
@@ -16,8 +27,9 @@ async function api(path, options = {}) {
   const data = await res.json();
   if (res.status === 401) {
     clearUser();
-    location.href = "/login.html";
-    throw new Error("登录已过期，请重新登录");
+    alert("登录已过期，请重新登录");
+    location.href = "/login.html?redirect=" + encodeURIComponent(location.pathname);
+    throw new Error("登录已过期");
   }
   if (!res.ok) {
     throw new Error(data.error || "请求失败");
@@ -87,6 +99,11 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+function getAudioType(filename) {
+  const ext = filename.split(".").pop().toLowerCase();
+  return AUDIO_TYPES["." + ext] || "audio/mpeg";
+}
+
 function renderNav(containerId) {
   const el = document.getElementById(containerId);
   if (!el) return;
@@ -108,6 +125,24 @@ function renderNav(containerId) {
   }
 }
 
-function buildNavHtml() {
-  return `<nav class="nav"><div class="nav-inner"><a href="/" class="nav-brand">🎙 PodWave</a><div class="nav-links" id="navLinks"></div></div></nav>`;
+function showLoading(containerId) {
+  const el = document.getElementById(containerId);
+  if (el) el.innerHTML = '<div class="card" style="text-align:center;padding:40px;"><div class="loading-spinner"></div><p style="margin-top:12px;color:var(--text-secondary);">加载中...</p></div>';
+}
+
+function renderPagination(containerId, data, loadFn) {
+  const el = document.getElementById(containerId);
+  if (!el || data.totalPages <= 1) { if (el) el.innerHTML = ""; return; }
+  let html = "";
+  if (data.page > 1) html += `<button class="btn btn-outline btn-sm" onclick="${loadFn}(${data.page - 1})">上一页</button> `;
+  html += `<span style="margin:0 12px;font-size:14px;color:var(--text-secondary);">${data.page} / ${data.totalPages}</span>`;
+  if (data.page < data.totalPages) html += `<button class="btn btn-outline btn-sm" onclick="${loadFn}(${data.page + 1})">下一页</button>`;
+  el.innerHTML = html;
+}
+
+function handleRedirect() {
+  const params = new URLSearchParams(location.search);
+  const redirect = params.get("redirect");
+  if (redirect) return redirect;
+  return "/";
 }

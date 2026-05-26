@@ -21,8 +21,9 @@
 
   <script src="/js/api.js"></script>
   <script>
-    if (!isLoggedIn()) { location.href = "/login.html"; }
+    if (!isLoggedIn()) { location.href = "/login.html?redirect=" + encodeURIComponent(location.pathname); }
     renderNav("navLinks");
+    showLoading("myFeed");
 
     async function loadMyPodcasts(page) {
       page = page || 1;
@@ -33,6 +34,7 @@
 
         if (data.rows.length === 0 && page === 1) {
           empty.style.display = "block";
+          feed.innerHTML = "";
           document.getElementById("pagination").innerHTML = "";
           return;
         }
@@ -43,6 +45,7 @@
             : p.status === "pending"
               ? '<span class="badge badge-pending">审核中</span>'
               : '<span class="badge badge-rejected">已拒绝</span>';
+          const mimeType = getAudioType(p.audio_path);
           return `
             <div class="card podcast-card">
               <div class="podcast-header">
@@ -54,19 +57,13 @@
               </div>
               ${p.description ? `<div class="podcast-desc">${escapeHtml(p.description)}</div>` : ""}
               <audio controls class="podcast-audio" preload="metadata">
-                <source src="${p.audio_path}" type="audio/mpeg">
+                <source src="${p.audio_path}" type="${mimeType}">
               </audio>
               <div style="font-size:14px;color:var(--text-secondary);">♡ ${p.like_count || 0} · 💬 ${p.comment_count || 0}</div>
             </div>`;
         }).join("");
 
-        const el = document.getElementById("pagination");
-        if (data.totalPages <= 1) { el.innerHTML = ""; return; }
-        let html = "";
-        if (data.page > 1) html += `<button class="btn btn-outline btn-sm" onclick="loadMyPodcasts(${data.page - 1})">上一页</button> `;
-        html += `<span style="margin:0 12px;font-size:14px;color:var(--text-secondary);">${data.page} / ${data.totalPages}</span>`;
-        if (data.page < data.totalPages) html += ` <button class="btn btn-outline btn-sm" onclick="loadMyPodcasts(${data.page + 1})">下一页</button>`;
-        el.innerHTML = html;
+        renderPagination("pagination", data, "loadMyPodcasts");
       } catch (err) {
         document.getElementById("myFeed").innerHTML =
           `<div class="card"><p style="color:var(--danger);">加载失败：${escapeHtml(err.message)}</p></div>`;
