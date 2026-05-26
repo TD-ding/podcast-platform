@@ -65,12 +65,58 @@ router.post("/login", async (req, res, next) => {
   }
 });
 
-router.get("/me", authMiddleware, (req, res) => {
-  const user = db.prepare("SELECT id, username, avatar, bio, role, created_at FROM users WHERE id = ?").get(req.user.id);
-  if (!user) {
-    return res.status(404).json({ error: "用户不存在" });
-  }
-  res.json(user);
+router.get("/me", authMiddleware, (req, res, next) => {
+  try {
+    const user = db.prepare("SELECT id, username, avatar, bio, role, created_at FROM users WHERE id = ?").get(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: "用户不存在" });
+    }
+    res.json(user);
+  } catch (err) { next(err); }
+});
+
+router.get("/user/:id", (req, res, next) => {
+  try {
+    const user = db.prepare("SELECT id, username, avatar, bio, role, created_at FROM users WHERE id = ?").get(req.params.id);
+    if (!user) {
+      return res.status(404).json({ error: "用户不存在" });
+    }
+    res.json(user);
+  } catch (err) { next(err); }
+});
+
+router.put("/profile", authMiddleware, (req, res, next) => {
+  try {
+    const { bio } = req.body;
+    if (bio && bio.length > 200) {
+      return res.status(400).json({ error: "简介不能超过 200 字" });
+    }
+    db.prepare("UPDATE users SET bio = ? WHERE id = ?").run(bio || "", req.user.id);
+    const updated = db.prepare("SELECT id, username, avatar, bio, role FROM users WHERE id = ?").get(req.user.id);
+    res.json(updated);
+  } catch (err) { next(err); }
+});
+
+router.put("/password", authMiddleware, async (req, res, next) => {
+  try {
+    const { oldPassword, newPassword } = req.body;
+    if (!oldPassword || !newPassword) {
+      return res.status(400).json({ error: "请填写旧密码和新密码" });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: "新密码长度至少 6 位" });
+    }
+
+    const user = db.prepare("SELECT * FROM users WHERE id = ?").get(req.user.id);
+    const valid = await bcrypt.compare(oldPassword, user.password);
+    if (!valid) {
+      return res.status(401).json({ error: "旧密码不正确" });
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    db.prepare("UPDATE users SET password = ? WHERE id = ?").run(hashed, req.user.id);
+    res.json({ message: "密码修改成功" });
+  } catch (err) { next(err); }
 });
 
 export default router;

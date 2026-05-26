@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>个人设置 - PodWave</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="nav"><div class="nav-inner"><a href="/" class="nav-brand">🎙 PodWave</a><div class="nav-links" id="navLinks"></div></div></nav>
+
+  <div class="container" style="max-width:600px;">
+    <h2 style="margin-bottom:20px;">个人设置</h2>
+
+    <div class="card" style="margin-bottom:16px;">
+      <h3 style="margin-bottom:16px;">基本信息</h3>
+      <div id="profile-error" class="error-msg"></div>
+      <div id="profile-success" style="background:#e8f8f0;color:var(--success);padding:10px;border-radius:8px;margin-bottom:16px;font-size:14px;display:none;"></div>
+      <form id="profileForm">
+        <div class="form-group">
+          <label>用户名</label>
+          <input type="text" id="username" class="form-input" disabled>
+        </div>
+        <div class="form-group">
+          <label>简介</label>
+          <textarea id="bio" class="form-textarea" placeholder="写点什么介绍一下自己（最多 200 字）" maxlength="200"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">保存</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom:16px;">修改密码</h3>
+      <div id="pwd-error" class="error-msg"></div>
+      <div id="pwd-success" style="background:#e8f8f0;color:var(--success);padding:10px;border-radius:8px;margin-bottom:16px;font-size:14px;display:none;"></div>
+      <form id="passwordForm">
+        <div class="form-group">
+          <label>当前密码</label>
+          <input type="password" id="oldPassword" class="form-input" placeholder="输入当前密码" required>
+        </div>
+        <div class="form-group">
+          <label>新密码</label>
+          <input type="password" id="newPassword" class="form-input" placeholder="至少 6 位" required>
+        </div>
+        <div class="form-group">
+          <label>确认新密码</label>
+          <input type="password" id="newPassword2" class="form-input" placeholder="再次输入新密码" required>
+        </div>
+        <button type="submit" class="btn btn-primary">修改密码</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script>
+    if (!isLoggedIn()) { location.href = "/login.html"; }
+    renderNav("navLinks");
+
+    async function loadProfile() {
+      try {
+        const user = await api("/api/auth/me");
+        document.getElementById("username").value = user.username;
+        document.getElementById("bio").value = user.bio || "";
+      } catch (_e) { /* ignore */ }
+    }
+
+    document.getElementById("profileForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const errorEl = document.getElementById("profile-error");
+      const successEl = document.getElementById("profile-success");
+      errorEl.style.display = "none";
+      successEl.style.display = "none";
+
+      try {
+        const data = await api("/api/auth/profile", {
+          method: "PUT",
+          body: { bio: document.getElementById("bio").value.trim() }
+        });
+        successEl.textContent = "保存成功";
+        successEl.style.display = "block";
+      } catch (err) {
+        errorEl.textContent = err.message;
+        errorEl.style.display = "block";
+      }
+    });
+
+    document.getElementById("passwordForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const errorEl = document.getElementById("pwd-error");
+      const successEl = document.getElementById("pwd-success");
+      errorEl.style.display = "none";
+      successEl.style.display = "none";
+
+      const oldPassword = document.getElementById("oldPassword").value;
+      const newPassword = document.getElementById("newPassword").value;
+      const newPassword2 = document.getElementById("newPassword2").value;
+
+      if (newPassword !== newPassword2) {
+        errorEl.textContent = "两次新密码不一致";
+        errorEl.style.display = "block";
+        return;
+      }
+
+      try {
+        await api("/api/auth/password", {
+          method: "PUT",
+          body: { oldPassword, newPassword }
+        });
+        successEl.textContent = "密码修改成功";
+        successEl.style.display = "block";
+        document.getElementById("oldPassword").value = "";
+        document.getElementById("newPassword").value = "";
+        document.getElementById("newPassword2").value = "";
+      } catch (err) {
+        errorEl.textContent = err.message;
+        errorEl.style.display = "block";
+      }
+    });
+
+    loadProfile();
+  </script>
+</body>
+</html>

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>播客详情 - PodWave</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="nav"><div class="nav-inner"><a href="/" class="nav-brand">🎙 PodWave</a><div class="nav-links" id="navLinks"></div></div></nav>
+
+  <div class="container" style="max-width:700px;">
+    <div id="podcast-detail"></div>
+    <div id="comments-section" class="card" style="margin-top:16px;">
+      <h3 style="margin-bottom:16px;">评论</h3>
+      <div id="comments-list"></div>
+      <div id="load-more-comments" style="text-align:center;padding:12px 0;display:none;">
+        <button class="btn btn-outline btn-sm" onclick="loadMoreComments()">加载更多评论</button>
+      </div>
+      <div id="comment-form-area"></div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script>
+    renderNav("navLinks");
+    const podcastId = new URLSearchParams(location.search).get("id");
+    if (!podcastId) location.href = "/";
+
+    let commentPage = 1;
+    let commentTotalPages = 1;
+
+    async function loadPodcast() {
+      const opts = {};
+      if (isLoggedIn()) {
+        opts.headers = { Authorization: `Bearer ${getToken()}` };
+      }
+      try {
+        const res = await fetch(`/api/podcasts/${podcastId}`, opts);
+        const p = await res.json();
+        if (!res.ok) throw new Error(p.error);
+        document.title = `${p.title} - PodWave`;
+
+        const initial = (p.username || "?")[0].toUpperCase();
+        const mimeType = getAudioType(p.audio_path);
+        const likedClass = p.liked ? "liked" : "";
+        const likedSymbol = p.liked ? "♥" : "♡";
+
+        document.getElementById("podcast-detail").innerHTML = `
+          <div class="card">
+            <div class="podcast-header">
+              <a href="/user.html?id=${p.user_id}" style="text-decoration:none;display:flex;align-items:center;gap:12px;">
+                <div class="podcast-avatar" style="width:48px;height:48px;font-size:20px;">${initial}</div>
+                <div class="podcast-meta">
+                  <div class="podcast-author">${escapeHtml(p.username)}</div>
+                  <div class="podcast-time">${formatTime(p.created_at)} · ${p.plays || 0} 次播放</div>
+                </div>
+              </a>
+            </div>
+            <div class="podcast-title" style="font-size:20px;margin:16px 0 8px;">${escapeHtml(p.title)}</div>
+            ${p.description ? `<div class="podcast-desc" style="margin-bottom:16px;">${escapeHtml(p.description)}</div>` : ""}
+            <audio controls class="podcast-audio" style="width:100%;margin-bottom:16px;" preload="none">
+              <source src="${p.audio_path}" type="${mimeType}">
+            </audio>
+            <div class="podcast-actions">
+              <button class="podcast-action ${likedClass}" id="like-btn" onclick="toggleLike(${p.id})">
+                ${likedSymbol} <span id="like-count">${p.like_count || 0}</span>
+              </button>
+              <span class="podcast-action" style="cursor:default;">💬 <span>${p.comment_count || 0}</span></span>
+            </div>
+          </div>`;
+
+        if (isLoggedIn()) {
+          document.getElementById("comment-form-area").innerHTML = `
+            <div class="comment-form" style="margin-top:16px;">
+              <input type="text" id="comment-input" class="comment-input" placeholder="写下你的评论..." onkeydown="if(event.key==='Enter')postComment()">
+              <button class="btn btn-sm btn-primary" onclick="postComment()">发送</button>
+            </div>`;
+        } else {
+          document.getElementById("comment-form-area").innerHTML =
+            '<p style="font-size:14px;color:var(--text-secondary);margin-top:16px;"><a href="/login.html">登录</a> 后可以评论</p>';
+        }
+
+        await loadComments();
+      } catch (err) {
+        document.getElementById("podcast-detail").innerHTML =
+          `<div class="card"><p style="color:var(--danger);">${escapeHtml(err.message)}</p></div>`;
+      }
+    }
+
+    async function toggleLike(id) {
+      if (!isLoggedIn()) { location.href = "/login.html?redirect=" + encodeURIComponent(location.pathname + location.search); return; }
+      try {
+        const result = await api(`/api/podcasts/${id}/like`, { method: "POST" });
+        const btn = document.getElementById("like-btn");
+        const count = document.getElementById("like-count");
+        btn.classList.toggle("liked", result.liked);
+        btn.childNodes[0].textContent = result.liked ? "♥ " : "♡ ";
+        count.textContent = result.liked ? parseInt(count.textContent) + 1 : parseInt(count.textContent) - 1;
+      } catch (_e) { /* ignore */ }
+    }
+
+    async function loadComments() {
+      try {
+        const data = await api(`/api/podcasts/${podcastId}/comments?page=${commentPage}&limit=10`);
+        const list = document.getElementById("comments-list");
+        const userId = getUser()?.id;
+
+        if (commentPage === 1) list.innerHTML = "";
+
+        data.rows.forEach(c => {
+          const initial = (c.username || "?")[0].toUpperCase();
+          const deleteBtn = (userId && c.user_id === userId)
+            ? `<button class="btn btn-sm btn-outline" style="margin-left:auto;font-size:11px;padding:2px 8px;" onclick="deleteComment(${c.id})">删除</button>` : "";
+          list.insertAdjacentHTML("beforeend", `
+            <div class="comment-item" id="comment-${c.id}">
+              <a href="/user.html?id=${c.user_id}" style="text-decoration:none;">
+                <div class="comment-avatar">${initial}</div>
+              </a>
+              <div class="comment-body" style="display:flex;align-items:flex-start;gap:8px;flex:1;">
+                <div style="flex:1;">
+                  <a href="/user.html?id=${c.user_id}" style="text-decoration:none;"><div class="comment-author">${escapeHtml(c.username)}</div></a>
+                  <div class="comment-text">${escapeHtml(c.content)}</div>
+                  <div class="comment-time">${formatTime(c.created_at)}</div>
+                </div>
+                ${deleteBtn}
+              </div>
+            </div>`);
+        });
+
+        commentTotalPages = data.totalPages;
+        document.getElementById("load-more-comments").style.display =
+          commentPage < commentTotalPages ? "block" : "none";
+      } catch (_e) { /* ignore */ }
+    }
+
+    function loadMoreComments() {
+      commentPage++;
+      loadComments();
+    }
+
+    async function postComment() {
+      const input = document.getElementById("comment-input");
+      const content = input.value.trim();
+      if (!content) return;
+      try {
+        const comment = await api(`/api/podcasts/${podcastId}/comments`, { method: "POST", body: { content } });
+        input.value = "";
+        const userId = getUser()?.id;
+        const initial = (comment.username || "?")[0].toUpperCase();
+        const deleteBtn = userId === comment.user_id
+          ? `<button class="btn btn-sm btn-outline" style="margin-left:auto;font-size:11px;padding:2px 8px;" onclick="deleteComment(${comment.id})">删除</button>` : "";
+        const list = document.getElementById("comments-list");
+        list.insertAdjacentHTML("afterbegin", `
+          <div class="comment-item" id="comment-${comment.id}">
+            <div class="comment-avatar">${initial}</div>
+            <div class="comment-body" style="display:flex;align-items:flex-start;gap:8px;flex:1;">
+              <div style="flex:1;">
+                <div class="comment-author">${escapeHtml(comment.username)}</div>
+                <div class="comment-text">${escapeHtml(comment.content)}</div>
+                <div class="comment-time">${formatTime(comment.created_at)}</div>
+              </div>
+              ${deleteBtn}
+            </div>
+          </div>`);
+      } catch (err) { alert(err.message); }
+    }
+
+    async function deleteComment(commentId) {
+      if (!confirm("确定删除这条评论吗？")) return;
+      try {
+        await api(`/api/podcasts/${podcastId}/comments/${commentId}`, { method: "DELETE" });
+        const el = document.getElementById(`comment-${commentId}`);
+        if (el) el.remove();
+      } catch (err) { alert(err.message); }
+    }
+
+    loadPodcast();
+  </script>
+</body>
+</html>

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>用户主页 - PodWave</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="nav"><div class="nav-inner"><a href="/" class="nav-brand">🎙 PodWave</a><div class="nav-links" id="navLinks"></div></div></nav>
+
+  <div class="container" style="max-width:700px;">
+    <div id="user-info" class="card"></div>
+    <h3 style="margin:20px 0 12px;">发布的播客</h3>
+    <div id="user-podcasts"></div>
+    <div id="pagination" style="text-align:center;padding:16px 0;"></div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script>
+    renderNav("navLinks");
+    showLoading("user-podcasts");
+
+    const userId = new URLSearchParams(location.search).get("id");
+    if (!userId) location.href = "/";
+
+    async function loadProfile() {
+      try {
+        const user = await api(`/api/auth/user/${userId}`);
+        const initial = (user.username || "?")[0].toUpperCase();
+        document.title = `${user.username} 的主页 - PodWave`;
+        document.getElementById("user-info").innerHTML = `
+          <div style="display:flex;align-items:center;gap:16px;">
+            <div class="podcast-avatar" style="width:64px;height:64px;font-size:28px;">${initial}</div>
+            <div>
+              <div style="font-size:20px;font-weight:700;">${escapeHtml(user.username)}</div>
+              <div style="font-size:14px;color:var(--text-secondary);margin-top:4px;">${user.bio ? escapeHtml(user.bio) : '这个人很懒，什么都没写~'}</div>
+              <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">注册于 ${formatTime(user.created_at)}</div>
+            </div>
+          </div>`;
+      } catch (err) {
+        document.getElementById("user-info").innerHTML =
+          `<p style="color:var(--danger);">${escapeHtml(err.message)}</p>`;
+      }
+    }
+
+    async function loadUserPodcasts(page) {
+      page = page || 1;
+      try {
+        const data = await api(`/api/podcasts/user/${userId}?page=${page}&limit=10`);
+        const feed = document.getElementById("user-podcasts");
+
+        if (data.rows.length === 0 && page === 1) {
+          feed.innerHTML = '<div class="card" style="text-align:center;padding:24px;color:var(--text-secondary);">还没有发布播客</div>';
+          document.getElementById("pagination").innerHTML = "";
+          return;
+        }
+
+        feed.innerHTML = data.rows.map(p => {
+          const mimeType = getAudioType(p.audio_path);
+          const likedClass = p.liked ? "liked" : "";
+          const likedSymbol = p.liked ? "♥" : "♡";
+          return `
+            <div class="card podcast-card">
+              <a href="/detail.html?id=${p.id}" style="text-decoration:none;color:inherit;">
+                <div class="podcast-title">${escapeHtml(p.title)}</div>
+              </a>
+              ${p.description ? `<div class="podcast-desc">${escapeHtml(p.description)}</div>` : ""}
+              <audio controls class="podcast-audio" preload="none">
+                <source src="${p.audio_path}" type="${mimeType}">
+              </audio>
+              <div style="font-size:14px;color:var(--text-secondary);">
+                ${likedSymbol} ${p.like_count || 0} · 💬 ${p.comment_count || 0} · ▶ ${p.plays || 0} 次播放
+              </div>
+            </div>`;
+        }).join("");
+
+        renderPagination("pagination", data, "loadUserPodcasts");
+      } catch (err) {
+        document.getElementById("user-podcasts").innerHTML =
+          `<div class="card"><p style="color:var(--danger);">加载失败：${escapeHtml(err.message)}</p></div>`;
+      }
+    }
+
+    loadProfile();
+    loadUserPodcasts(1);
+  </script>
+</body>
+</html>

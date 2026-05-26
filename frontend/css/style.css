@@ -428,8 +428,37 @@ a:hover { text-decoration: underline; }
 .badge-approved { background: #e8f8f0; color: var(--success); }
 .badge-rejected { background: #fdeaea; color: var(--danger); }
 
+/* Hamburger menu toggle */
+.nav-toggle {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  font-size: 24px;
+  color: var(--text);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
+  .nav-toggle { display: block; }
+  .nav-links {
+    display: none;
+    position: absolute;
+    top: 56px;
+    left: 0;
+    right: 0;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--border);
+    flex-direction: column;
+    padding: 8px 16px;
+    box-shadow: var(--shadow);
+    z-index: 99;
+  }
+  .nav-links.open { display: flex; }
+  .nav-links a, .nav-links button { padding: 10px 0; text-align: left; }
+  .nav-user { flex-wrap: wrap; }
+
   .admin-layout {
     grid-template-columns: 1fr;
   }
@@ -439,4 +468,8 @@ a:hover { text-decoration: underline; }
     gap: 4px;
   }
   .admin-nav-item { white-space: nowrap; margin-bottom: 0; }
+
+  .admin-table { font-size: 12px; }
+  .admin-table th, .admin-table td { padding: 8px; }
+  .admin-table audio { width: 80px !important; }
 }

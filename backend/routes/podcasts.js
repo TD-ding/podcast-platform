@@ -5,8 +5,11 @@ import path from "path";
 import fs from "fs";
 import crypto from "crypto";
 import db from "../db/init.js";
-import { authMiddleware } from "../middleware/auth.js";
-import { getApprovedPodcasts, getPodcastsByUser, getPodcastById, getComments, addComment } from "../db/queries.js";
+import { authMiddleware, verifyToken } from "../middleware/auth.js";
+import {
+  getApprovedPodcasts, getPodcastsByUser, getPublicPodcastsByUser,
+  getPodcastById, getUserLikedIds, getComments, addComment, deleteComment,
+} from "../db/queries.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const uploadsDir = path.join(__dirname, "../../frontend/uploads");
@@ -65,10 +68,9 @@ router.post("/", authMiddleware, upload.single("audio"), (req, res, next) => {
     }
 
     const audioPath = `/uploads/${req.file.filename}`;
-    const insertPodcast = db.prepare(
+    const result = db.prepare(
       "INSERT INTO podcasts (user_id, title, description, audio_path) VALUES (?, ?, ?, ?)"
-    );
-    const result = insertPodcast.run(req.user.id, title, description || "", audioPath);
+    ).run(req.user.id, title, description || "", audioPath);
 
     const podcast = getPodcastById(result.lastInsertRowid);
     if (!podcast) {
@@ -82,11 +84,25 @@ router.post("/", authMiddleware, upload.single("audio"), (req, res, next) => {
   }
 });
 
-router.get("/", (req, res, next) => {
+router.get("/", async (req, res, next) => {
   try {
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
-    res.json(getApprovedPodcasts({ page, limit }));
+    const keyword = (req.query.keyword || "").trim();
+    const data = getApprovedPodcasts({ page, limit, keyword });
+
+    const token = req.headers.authorization?.split(" ")[1];
+    if (token) {
+      try {
+        const decoded = verifyToken(token);
+        const likedIds = getUserLikedIds(decoded.id);
+        data.rows.forEach(p => { p.liked = likedIds.has(p.id); });
+      } catch {
+        // token invalid, skip liked state
+      }
+    }
+
+    res.json(data);
   } catch (err) { next(err); }
 });
 
@@ -94,17 +110,40 @@ router.get("/my", authMiddleware, (req, res, next) => {
   try {
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
-    res.json(getPodcastsByUser(req.user.id, { page, limit }));
+    const data = getPodcastsByUser(req.user.id, { page, limit });
+    const likedIds = getUserLikedIds(req.user.id);
+    data.rows.forEach(p => { p.liked = likedIds.has(p.id); });
+    res.json(data);
   } catch (err) { next(err); }
 });
 
-router.get("/:id", (req, res, next) => {
+router.get("/user/:userId", (req, res, next) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
+    res.json(getPublicPodcastsByUser(req.params.userId, { page, limit }));
+  } catch (err) { next(err); }
+});
+
+router.get("/:id", async (req, res, next) => {
   try {
     const podcast = getPodcastById(req.params.id);
     if (!podcast) {
       return res.status(404).json({ error: "播客不存在" });
     }
     db.prepare("UPDATE podcasts SET plays = plays + 1 WHERE id = ?").run(req.params.id);
+
+    const token = req.headers.authorization?.split(" ")[1];
+    if (token) {
+      try {
+        const decoded = verifyToken(token);
+        const likedIds = getUserLikedIds(decoded.id);
+        podcast.liked = likedIds.has(podcast.id);
+      } catch {
+        // ignore
+      }
+    }
+
     res.json(podcast);
   } catch (err) { next(err); }
 });
@@ -119,12 +158,12 @@ router.delete("/:id", authMiddleware, (req, res, next) => {
       return res.status(403).json({ error: "无权删除" });
     }
 
-    const deletePodcast = db.transaction(() => {
+    const doDelete = db.transaction(() => {
       db.prepare("DELETE FROM likes WHERE podcast_id = ?").run(req.params.id);
       db.prepare("DELETE FROM comments WHERE podcast_id = ?").run(req.params.id);
       db.prepare("DELETE FROM podcasts WHERE id = ?").run(req.params.id);
     });
-    deletePodcast();
+    doDelete();
 
     cleanupFile(podcast.audio_path);
     res.json({ message: "删除成功" });
@@ -152,14 +191,6 @@ router.post("/:id/like", authMiddleware, (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.get("/:id/like-status", authMiddleware, (req, res, next) => {
-  try {
-    const existing = db.prepare("SELECT id FROM likes WHERE user_id = ? AND podcast_id = ?")
-      .get(req.user.id, req.params.id);
-    res.json({ liked: !!existing });
-  } catch (err) { next(err); }
-});
-
 // Comments
 router.get("/:id/comments", (req, res, next) => {
   try {
@@ -182,6 +213,16 @@ router.post("/:id/comments", authMiddleware, (req, res, next) => {
 
     const comment = addComment(req.user.id, req.params.id, content.trim());
     res.json(comment);
+  } catch (err) { next(err); }
+});
+
+router.delete("/:podcastId/comments/:commentId", authMiddleware, (req, res, next) => {
+  try {
+    const ok = deleteComment(parseInt(req.params.commentId), req.user.id);
+    if (!ok) {
+      return res.status(403).json({ error: "无权删除此评论" });
+    }
+    res.json({ message: "删除成功" });
   } catch (err) { next(err); }
 });
 
