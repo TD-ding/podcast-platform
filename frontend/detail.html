@@ -61,7 +61,7 @@
             </div>
             <div class="podcast-title" style="font-size:20px;margin:16px 0 8px;">${escapeHtml(p.title)}</div>
             ${p.description ? `<div class="podcast-desc" style="margin-bottom:16px;">${escapeHtml(p.description)}</div>` : ""}
-            ${p.cover_image ? `<img src="${p.cover_image}" alt="封面" style="width:100%;max-height:300px;object-fit:cover;border-radius:8px;margin-bottom:16px;">` : ""}
+            ${renderCoverImage(p)}
             <audio controls class="podcast-audio" style="width:100%;margin-bottom:16px;" preload="none">
               <source src="${p.audio_path}" type="${mimeType}">
             </audio>
@@ -112,12 +112,13 @@
         const data = await api(`/api/podcasts/${podcastId}/comments?page=${commentPage}&limit=10`);
         const list = document.getElementById("comments-list");
         const userId = getUser()?.id;
+        const userIsAdmin = isAdmin();
 
         if (commentPage === 1) list.innerHTML = "";
 
         data.rows.forEach(c => {
           const initial = (c.username || "?")[0].toUpperCase();
-          const deleteBtn = (userId && c.user_id === userId)
+          const deleteBtn = (userId && (c.user_id === userId || userIsAdmin))
             ? `<button class="btn btn-sm btn-outline" style="margin-left:auto;font-size:11px;padding:2px 8px;" onclick="deleteComment(${c.id})">删除</button>` : "";
           list.insertAdjacentHTML("beforeend", `
             <div class="comment-item" id="comment-${c.id}">
@@ -155,7 +156,7 @@
         input.value = "";
         const userId = getUser()?.id;
         const initial = (comment.username || "?")[0].toUpperCase();
-        const deleteBtn = userId === comment.user_id
+        const deleteBtn = userId && (comment.user_id === userId || isAdmin())
           ? `<button class="btn btn-sm btn-outline" style="margin-left:auto;font-size:11px;padding:2px 8px;" onclick="deleteComment(${comment.id})">删除</button>` : "";
         const list = document.getElementById("comments-list");
         list.insertAdjacentHTML("afterbegin", `

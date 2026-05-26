@@ -47,7 +47,7 @@
         list.innerHTML = data.rows.map(n => {
           const icon = icons[n.type] || "🔔";
           const unread = !n.is_read ? 'style="background:#fff8f5;"' : "";
-          const link = n.link ? `onclick="location.href='${n.link}'"` : "";
+          const link = n.link ? `onclick="location.href='${escapeHtml(n.link)}'"` : "";
           return `
             <div class="card" ${unread} ${link} style="cursor:${n.link ? 'pointer' : 'default'};margin-bottom:8px;padding:14px 16px;">
               <div style="display:flex;align-items:flex-start;gap:12px;">

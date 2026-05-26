@@ -12,7 +12,8 @@ export function getApprovedPodcasts({ page = 1, limit = 20, keyword = "" } = {})
   const params = [];
   if (keyword) {
     where += " AND p.title LIKE ?";
-    params.push(`%${keyword}%`);
+    const escaped = keyword.replace(/[%_]/g, (c) => `\\${c}`);
+    params.push(`%${escaped}%`);
   }
   const rows = db.prepare(
     `${PODCAST_SELECT} ${where} ORDER BY p.created_at DESC LIMIT ? OFFSET ?`
@@ -94,9 +95,10 @@ export function addComment(userId, podcastId, content) {
   ).get(result.lastInsertRowid);
 }
 
-export function deleteComment(commentId, userId) {
+export function deleteComment(commentId, userId, isAdmin = false) {
   const comment = db.prepare("SELECT * FROM comments WHERE id = ?").get(commentId);
-  if (!comment || (comment.user_id !== userId)) return false;
+  if (!comment) return false;
+  if (!isAdmin && comment.user_id !== userId) return false;
   db.prepare("DELETE FROM comments WHERE id = ?").run(commentId);
   return true;
 }
