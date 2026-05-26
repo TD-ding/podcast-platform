@@ -7,11 +7,7 @@
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-  <nav class="nav">
-    <div class="nav-inner">
-      <a href="/" class="nav-brand">🎙 PodWave</a>
-    </div>
-  </nav>
+  <nav class="nav"><div class="nav-inner"><a href="/" class="nav-brand">🎙 PodWave</a><div class="nav-links" id="navLinks"></div></div></nav>
 
   <div class="auth-page">
     <div class="card">
@@ -36,23 +32,17 @@
 
   <script src="/js/api.js"></script>
   <script>
-    if (isLoggedIn()) {
-      location.href = "/";
-    }
+    if (isLoggedIn()) { location.href = "/"; }
+    renderNav("navLinks");
 
     document.getElementById("loginForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const errorEl = document.getElementById("error");
       errorEl.style.display = "none";
-
       const username = document.getElementById("username").value.trim();
       const password = document.getElementById("password").value;
-
       try {
-        const data = await api("/api/auth/login", {
-          method: "POST",
-          body: { username, password }
-        });
+        const data = await api("/api/auth/login", { method: "POST", body: { username, password } });
         setUser(data.token, data.user);
         location.href = "/";
       } catch (err) {

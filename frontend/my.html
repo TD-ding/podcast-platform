@@ -7,20 +7,12 @@
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-  <nav class="nav">
-    <div class="nav-inner">
-      <a href="/" class="nav-brand">🎙 PodWave</a>
-      <div class="nav-links">
-        <a href="/">动态</a>
-        <a href="/publish.html">发布播客</a>
-        <button onclick="logout()" class="btn btn-sm btn-outline">退出</button>
-      </div>
-    </div>
-  </nav>
+  <nav class="nav"><div class="nav-inner"><a href="/" class="nav-brand">🎙 PodWave</a><div class="nav-links" id="navLinks"></div></div></nav>
 
   <div class="container">
     <h2 style="margin-bottom:20px;">我的播客</h2>
     <div id="myFeed"></div>
+    <div id="pagination" style="text-align:center;padding:16px 0;"></div>
     <div id="emptyState" class="card" style="text-align:center;padding:40px;display:none;">
       <p style="font-size:18px;color:var(--text-secondary);">你还没有发布过播客</p>
       <a href="/publish.html" class="btn btn-primary" style="margin-top:16px;display:inline-flex;">发布第一个</a>
@@ -29,27 +21,23 @@
 
   <script src="/js/api.js"></script>
   <script>
-    if (!isLoggedIn()) {
-      location.href = "/login.html";
-    }
+    if (!isLoggedIn()) { location.href = "/login.html"; }
+    renderNav("navLinks");
 
-    function logout() {
-      clearUser();
-      location.href = "/login.html";
-    }
-
-    async function loadMyPodcasts() {
+    async function loadMyPodcasts(page) {
+      page = page || 1;
       try {
-        const podcasts = await api("/api/podcasts/my");
+        const data = await api(`/api/podcasts/my?page=${page}&limit=10`);
         const feed = document.getElementById("myFeed");
         const empty = document.getElementById("emptyState");
 
-        if (podcasts.length === 0) {
+        if (data.rows.length === 0 && page === 1) {
           empty.style.display = "block";
+          document.getElementById("pagination").innerHTML = "";
           return;
         }
 
-        feed.innerHTML = podcasts.map(p => {
+        feed.innerHTML = data.rows.map(p => {
           const statusBadge = p.status === "approved"
             ? '<span class="badge badge-approved">已通过</span>'
             : p.status === "pending"
@@ -71,6 +59,14 @@
               <div style="font-size:14px;color:var(--text-secondary);">♡ ${p.like_count || 0} · 💬 ${p.comment_count || 0}</div>
             </div>`;
         }).join("");
+
+        const el = document.getElementById("pagination");
+        if (data.totalPages <= 1) { el.innerHTML = ""; return; }
+        let html = "";
+        if (data.page > 1) html += `<button class="btn btn-outline btn-sm" onclick="loadMyPodcasts(${data.page - 1})">上一页</button> `;
+        html += `<span style="margin:0 12px;font-size:14px;color:var(--text-secondary);">${data.page} / ${data.totalPages}</span>`;
+        if (data.page < data.totalPages) html += ` <button class="btn btn-outline btn-sm" onclick="loadMyPodcasts(${data.page + 1})">下一页</button>`;
+        el.innerHTML = html;
       } catch (err) {
         document.getElementById("myFeed").innerHTML =
           `<div class="card"><p style="color:var(--danger);">加载失败：${escapeHtml(err.message)}</p></div>`;
@@ -81,13 +77,11 @@
       if (!confirm("确定要删除这个播客吗？")) return;
       try {
         await api(`/api/podcasts/${id}`, { method: "DELETE" });
-        loadMyPodcasts();
-      } catch (err) {
-        alert(err.message);
-      }
+        loadMyPodcasts(1);
+      } catch (err) { alert(err.message); }
     }
 
-    loadMyPodcasts();
+    loadMyPodcasts(1);
   </script>
 </body>
 </html>

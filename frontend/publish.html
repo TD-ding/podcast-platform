@@ -7,16 +7,7 @@
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-  <nav class="nav">
-    <div class="nav-inner">
-      <a href="/" class="nav-brand">🎙 PodWave</a>
-      <div class="nav-links">
-        <a href="/">动态</a>
-        <a href="/my.html">我的播客</a>
-        <button onclick="logout()" class="btn btn-sm btn-outline">退出</button>
-      </div>
-    </div>
-  </nav>
+  <nav class="nav"><div class="nav-inner"><a href="/" class="nav-brand">🎙 PodWave</a><div class="nav-links" id="navLinks"></div></div></nav>
 
   <div class="container publish-page">
     <h2>发布播客</h2>
@@ -47,41 +38,28 @@
 
   <script src="/js/api.js"></script>
   <script>
-    if (!isLoggedIn()) {
-      location.href = "/login.html";
-    }
-
-    function logout() {
-      clearUser();
-      location.href = "/login.html";
-    }
+    if (!isLoggedIn()) { location.href = "/login.html"; }
+    renderNav("navLinks");
 
     const uploadArea = document.getElementById("uploadArea");
     const fileInput = document.getElementById("audioFile");
 
     uploadArea.addEventListener("click", () => fileInput.click());
-    uploadArea.addEventListener("dragover", (e) => {
-      e.preventDefault();
-      uploadArea.classList.add("dragover");
-    });
+    uploadArea.addEventListener("dragover", (e) => { e.preventDefault(); uploadArea.classList.add("dragover"); });
     uploadArea.addEventListener("dragleave", () => uploadArea.classList.remove("dragover"));
     uploadArea.addEventListener("drop", (e) => {
       e.preventDefault();
       uploadArea.classList.remove("dragover");
       if (e.dataTransfer.files.length) {
         fileInput.files = e.dataTransfer.files;
-        showFileName(e.dataTransfer.files[0].name);
+        document.getElementById("fileName").textContent = "已选择: " + e.dataTransfer.files[0].name;
       }
     });
     fileInput.addEventListener("change", () => {
       if (fileInput.files.length) {
-        showFileName(fileInput.files[0].name);
+        document.getElementById("fileName").textContent = "已选择: " + fileInput.files[0].name;
       }
     });
-
-    function showFileName(name) {
-      document.getElementById("fileName").textContent = "已选择: " + name;
-    }
 
     document.getElementById("publishForm").addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -104,15 +82,14 @@
       btn.textContent = "发布中...";
 
       try {
-        const token = getToken();
         const res = await fetch("/api/podcasts", {
           method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${getToken()}` },
           body: formData
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "发布失败");
-        location.href = "/";
+        location.href = "/my.html";
       } catch (err) {
         errorEl.textContent = err.message;
         errorEl.style.display = "block";

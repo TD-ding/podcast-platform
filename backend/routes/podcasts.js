@@ -2,8 +2,11 @@ import { Router } from "express";
 import multer from "multer";
 import { fileURLToPath } from "url";
 import path from "path";
+import fs from "fs";
+import crypto from "crypto";
 import db from "../db/init.js";
 import { authMiddleware } from "../middleware/auth.js";
+import { getApprovedPodcasts, getPodcastsByUser, getPodcastById, getComments, addComment } from "../db/queries.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const uploadsDir = path.join(__dirname, "../../frontend/uploads");
@@ -11,8 +14,9 @@ const uploadsDir = path.join(__dirname, "../../frontend/uploads");
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadsDir),
   filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`);
+    const ext = path.extname(file.originalname).toLowerCase();
+    const safeName = crypto.randomBytes(12).toString("hex");
+    cb(null, `${safeName}${ext}`);
   },
 });
 
@@ -46,44 +50,24 @@ router.post("/", authMiddleware, upload.single("audio"), (req, res) => {
     "INSERT INTO podcasts (user_id, title, description, audio_path) VALUES (?, ?, ?, ?)"
   ).run(req.user.id, title, description || "", audioPath);
 
-  const podcast = db.prepare(
-    `SELECT p.*, u.username, u.avatar FROM podcasts p JOIN users u ON p.user_id = u.id WHERE p.id = ?`
-  ).get(result.lastInsertRowid);
+  const podcast = getPodcastById(result.lastInsertRowid);
   res.json(podcast);
 });
 
-router.get("/", (_req, res) => {
-  const podcasts = db.prepare(
-    `SELECT p.*, u.username, u.avatar,
-       (SELECT COUNT(*) FROM likes WHERE podcast_id = p.id) AS like_count,
-       (SELECT COUNT(*) FROM comments WHERE podcast_id = p.id) AS comment_count
-     FROM podcasts p JOIN users u ON p.user_id = u.id
-     WHERE p.status = 'approved'
-     ORDER BY p.created_at DESC`
-  ).all();
-  res.json(podcasts);
+router.get("/", (req, res) => {
+  const page = Math.max(1, parseInt(req.query.page) || 1);
+  const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
+  res.json(getApprovedPodcasts({ page, limit }));
 });
 
 router.get("/my", authMiddleware, (req, res) => {
-  const podcasts = db.prepare(
-    `SELECT p.*, u.username, u.avatar,
-       (SELECT COUNT(*) FROM likes WHERE podcast_id = p.id) AS like_count,
-       (SELECT COUNT(*) FROM comments WHERE podcast_id = p.id) AS comment_count
-     FROM podcasts p JOIN users u ON p.user_id = u.id
-     WHERE p.user_id = ?
-     ORDER BY p.created_at DESC`
-  ).all(req.user.id);
-  res.json(podcasts);
+  const page = Math.max(1, parseInt(req.query.page) || 1);
+  const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
+  res.json(getPodcastsByUser(req.user.id, { page, limit }));
 });
 
 router.get("/:id", (req, res) => {
-  const podcast = db.prepare(
-    `SELECT p.*, u.username, u.avatar,
-       (SELECT COUNT(*) FROM likes WHERE podcast_id = p.id) AS like_count,
-       (SELECT COUNT(*) FROM comments WHERE podcast_id = p.id) AS comment_count
-     FROM podcasts p JOIN users u ON p.user_id = u.id
-     WHERE p.id = ?`
-  ).get(req.params.id);
+  const podcast = getPodcastById(req.params.id);
   if (!podcast) {
     return res.status(404).json({ error: "播客不存在" });
   }
@@ -99,6 +83,16 @@ router.delete("/:id", authMiddleware, (req, res) => {
   if (podcast.user_id !== req.user.id && req.user.role !== "admin") {
     return res.status(403).json({ error: "无权删除" });
   }
+
+  const audioAbsPath = path.join(uploadsDir, path.basename(podcast.audio_path));
+  try {
+    if (fs.existsSync(audioAbsPath)) {
+      fs.unlinkSync(audioAbsPath);
+    }
+  } catch {
+    // file cleanup best-effort
+  }
+
   db.prepare("DELETE FROM podcasts WHERE id = ?").run(req.params.id);
   res.json({ message: "删除成功" });
 });
@@ -130,11 +124,9 @@ router.get("/:id/like-status", authMiddleware, (req, res) => {
 
 // Comments
 router.get("/:id/comments", (req, res) => {
-  const comments = db.prepare(
-    `SELECT c.*, u.username, u.avatar FROM comments c JOIN users u ON c.user_id = u.id
-     WHERE c.podcast_id = ? ORDER BY c.created_at DESC`
-  ).all(req.params.id);
-  res.json(comments);
+  const page = Math.max(1, parseInt(req.query.page) || 1);
+  const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
+  res.json(getComments(req.params.id, { page, limit }));
 });
 
 router.post("/:id/comments", authMiddleware, (req, res) => {
@@ -147,13 +139,7 @@ router.post("/:id/comments", authMiddleware, (req, res) => {
     return res.status(404).json({ error: "播客不存在" });
   }
 
-  const result = db.prepare(
-    "INSERT INTO comments (user_id, podcast_id, content) VALUES (?, ?, ?)"
-  ).run(req.user.id, req.params.id, content.trim());
-
-  const comment = db.prepare(
-    `SELECT c.*, u.username, u.avatar FROM comments c JOIN users u ON c.user_id = u.id WHERE c.id = ?`
-  ).get(result.lastInsertRowid);
+  const comment = addComment(req.user.id, req.params.id, content.trim());
   res.json(comment);
 });
 

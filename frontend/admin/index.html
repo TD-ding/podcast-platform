@@ -7,21 +7,13 @@
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-  <nav class="nav">
-    <div class="nav-inner">
-      <a href="/" class="nav-brand">🎙 PodWave</a>
-      <div class="nav-links">
-        <a href="/">返回前台</a>
-        <button onclick="logout()" class="btn btn-sm btn-outline">退出</button>
-      </div>
-    </div>
-  </nav>
+  <nav class="nav"><div class="nav-inner"><a href="/" class="nav-brand">🎙 PodWave</a><div class="nav-links" id="navLinks"></div></div></nav>
 
   <div class="admin-layout">
     <div class="admin-sidebar">
-      <button class="admin-nav-item active" onclick="switchTab('dashboard')">📊 仪表盘</button>
-      <button class="admin-nav-item" onclick="switchTab('users')">👥 用户管理</button>
-      <button class="admin-nav-item" onclick="switchTab('podcasts')">🎙 内容审核</button>
+      <button class="admin-nav-item active" data-tab="dashboard" onclick="switchTab('dashboard', this)">📊 仪表盘</button>
+      <button class="admin-nav-item" data-tab="users" onclick="switchTab('users', this)">👥 用户管理</button>
+      <button class="admin-nav-item" data-tab="podcasts" onclick="switchTab('podcasts', this)">🎙 内容审核</button>
     </div>
     <div class="admin-content">
       <div id="tab-dashboard">
@@ -30,19 +22,15 @@
       </div>
       <div id="tab-users" style="display:none;">
         <h2 style="margin-bottom:20px;">用户管理</h2>
-        <table class="admin-table" id="usersTable">
-          <thead>
-            <tr><th>ID</th><th>用户名</th><th>角色</th><th>状态</th><th>注册时间</th><th>操作</th></tr>
-          </thead>
+        <table class="admin-table">
+          <thead><tr><th>ID</th><th>用户名</th><th>角色</th><th>状态</th><th>注册时间</th><th>操作</th></tr></thead>
           <tbody id="usersBody"></tbody>
         </table>
       </div>
       <div id="tab-podcasts" style="display:none;">
         <h2 style="margin-bottom:20px;">内容审核</h2>
-        <table class="admin-table" id="podcastsTable">
-          <thead>
-            <tr><th>ID</th><th>标题</th><th>作者</th><th>状态</th><th>发布时间</th><th>操作</th></tr>
-          </thead>
+        <table class="admin-table">
+          <thead><tr><th>ID</th><th>标题</th><th>作者</th><th>状态</th><th>发布时间</th><th>操作</th></tr></thead>
           <tbody id="podcastsBody"></tbody>
         </table>
       </div>
@@ -51,20 +39,14 @@
 
   <script src="/js/api.js"></script>
   <script>
-    if (!isLoggedIn() || !isAdmin()) {
-      location.href = "/";
-    }
+    if (!isLoggedIn() || !isAdmin()) { location.href = "/"; }
+    renderNav("navLinks");
 
-    function logout() {
-      clearUser();
-      location.href = "/login.html";
-    }
-
-    function switchTab(name) {
+    function switchTab(name, btn) {
       document.querySelectorAll("[id^='tab-']").forEach(t => t.style.display = "none");
       document.getElementById(`tab-${name}`).style.display = "block";
       document.querySelectorAll(".admin-nav-item").forEach(b => b.classList.remove("active"));
-      event.target.classList.add("active");
+      btn.classList.add("active");
       if (name === "dashboard") loadStats();
       if (name === "users") loadUsers();
       if (name === "podcasts") loadPodcasts();
@@ -78,9 +60,7 @@
           <div class="stat-card"><div class="stat-value">${stats.podcastCount}</div><div class="stat-label">播客总数</div></div>
           <div class="stat-card"><div class="stat-value">${stats.pendingCount}</div><div class="stat-label">待审核</div></div>
           <div class="stat-card"><div class="stat-value">${stats.commentCount}</div><div class="stat-label">评论总数</div></div>`;
-      } catch (_e) {
-        // ignore
-      }
+      } catch (_e) { /* ignore */ }
     }
 
     async function loadUsers() {
@@ -100,29 +80,21 @@
               : '-'}
             </td>
           </tr>`).join("");
-      } catch (_e) {
-        // ignore
-      }
+      } catch (_e) { /* ignore */ }
     }
 
     async function setUserStatus(id, status) {
       try {
-        await api(`/api/admin/users/${id}/status`, {
-          method: "PUT",
-          body: { status }
-        });
+        await api(`/api/admin/users/${id}/status`, { method: "PUT", body: { status } });
         loadUsers();
-      } catch (err) {
-        alert(err.message);
-      }
+      } catch (err) { alert(err.message); }
     }
 
     async function loadPodcasts() {
       try {
         const podcasts = await api("/api/admin/podcasts");
         document.getElementById("podcastsBody").innerHTML = podcasts.map(p => {
-          let badge = "badge-pending";
-          let label = "待审核";
+          let badge = "badge-pending", label = "待审核";
           if (p.status === "approved") { badge = "badge-approved"; label = "已通过"; }
           if (p.status === "rejected") { badge = "badge-rejected"; label = "已拒绝"; }
           return `
@@ -138,21 +110,14 @@
               </td>
             </tr>`;
         }).join("");
-      } catch (_e) {
-        // ignore
-      }
+      } catch (_e) { /* ignore */ }
     }
 
     async function setPodcastStatus(id, status) {
       try {
-        await api(`/api/admin/podcasts/${id}/status`, {
-          method: "PUT",
-          body: { status }
-        });
+        await api(`/api/admin/podcasts/${id}/status`, { method: "PUT", body: { status } });
         loadPodcasts();
-      } catch (err) {
-        alert(err.message);
-      }
+      } catch (err) { alert(err.message); }
     }
 
     loadStats();

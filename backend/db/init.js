@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import { fileURLToPath } from "url";
 import path from "path";
+import bcrypt from "bcryptjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dbPath = path.join(__dirname, "podcast.db");
@@ -31,7 +32,7 @@ db.exec(`
     cover_image TEXT DEFAULT '',
     duration INTEGER DEFAULT 0,
     plays INTEGER DEFAULT 0,
-    status TEXT DEFAULT 'approved',
+    status TEXT DEFAULT 'pending',
     created_at TEXT DEFAULT (datetime('now')),
     FOREIGN KEY (user_id) REFERENCES users(id)
   );
@@ -55,12 +56,19 @@ db.exec(`
     FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (podcast_id) REFERENCES podcasts(id)
   );
+
+  CREATE INDEX IF NOT EXISTS idx_podcasts_user_id ON podcasts(user_id);
+  CREATE INDEX IF NOT EXISTS idx_podcasts_status ON podcasts(status);
+  CREATE INDEX IF NOT EXISTS idx_podcasts_created_at ON podcasts(created_at);
+  CREATE INDEX IF NOT EXISTS idx_likes_podcast_id ON likes(podcast_id);
+  CREATE INDEX IF NOT EXISTS idx_likes_user_podcast ON likes(user_id, podcast_id);
+  CREATE INDEX IF NOT EXISTS idx_comments_podcast_id ON comments(podcast_id);
 `);
 
 const adminExists = db.prepare("SELECT id FROM users WHERE role = 'admin'").get();
 if (!adminExists) {
-  const bcrypt = await import("bcryptjs");
-  const hashed = bcrypt.hashSync("admin123", 10);
+  const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
+  const hashed = bcrypt.hashSync(adminPassword, 10);
   db.prepare("INSERT INTO users (username, password, role) VALUES (?, ?, 'admin')").run("admin", hashed);
 }
 

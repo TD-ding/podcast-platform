@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 
-const SECRET = process.env.JWT_SECRET || "podcast_platform_secret";
+const SECRET = process.env.JWT_SECRET;
 
 export function authMiddleware(req, res, next) {
   const token = req.headers.authorization?.split(" ")[1];
