@@ -47,6 +47,16 @@ db.exec(`
     FOREIGN KEY (podcast_id) REFERENCES podcasts(id)
   );
 
+  CREATE TABLE IF NOT EXISTS favorites (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    podcast_id INTEGER NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(user_id, podcast_id),
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (podcast_id) REFERENCES podcasts(id)
+  );
+
   CREATE TABLE IF NOT EXISTS comments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
@@ -57,12 +67,28 @@ db.exec(`
     FOREIGN KEY (podcast_id) REFERENCES podcasts(id)
   );
 
+  CREATE TABLE IF NOT EXISTS notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    type TEXT NOT NULL,
+    title TEXT DEFAULT '',
+    content TEXT DEFAULT '',
+    link TEXT DEFAULT '',
+    is_read INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+
   CREATE INDEX IF NOT EXISTS idx_podcasts_user_id ON podcasts(user_id);
   CREATE INDEX IF NOT EXISTS idx_podcasts_status ON podcasts(status);
   CREATE INDEX IF NOT EXISTS idx_podcasts_created_at ON podcasts(created_at);
   CREATE INDEX IF NOT EXISTS idx_likes_podcast_id ON likes(podcast_id);
   CREATE INDEX IF NOT EXISTS idx_likes_user_podcast ON likes(user_id, podcast_id);
+  CREATE INDEX IF NOT EXISTS idx_favorites_podcast_id ON favorites(podcast_id);
+  CREATE INDEX IF NOT EXISTS idx_favorites_user_podcast ON favorites(user_id, podcast_id);
   CREATE INDEX IF NOT EXISTS idx_comments_podcast_id ON comments(podcast_id);
+  CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+  CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON notifications(user_id, is_read);
 `);
 
 const adminExists = db.prepare("SELECT id FROM users WHERE role = 'admin'").get();

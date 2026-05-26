@@ -45,6 +45,8 @@
         const mimeType = getAudioType(p.audio_path);
         const likedClass = p.liked ? "liked" : "";
         const likedSymbol = p.liked ? "♥" : "♡";
+        const favSymbol = p.favorited ? "★" : "☆";
+        const favClass = p.favorited ? "favorited" : "";
 
         document.getElementById("podcast-detail").innerHTML = `
           <div class="card">
@@ -59,6 +61,7 @@
             </div>
             <div class="podcast-title" style="font-size:20px;margin:16px 0 8px;">${escapeHtml(p.title)}</div>
             ${p.description ? `<div class="podcast-desc" style="margin-bottom:16px;">${escapeHtml(p.description)}</div>` : ""}
+            ${p.cover_image ? `<img src="${p.cover_image}" alt="封面" style="width:100%;max-height:300px;object-fit:cover;border-radius:8px;margin-bottom:16px;">` : ""}
             <audio controls class="podcast-audio" style="width:100%;margin-bottom:16px;" preload="none">
               <source src="${p.audio_path}" type="${mimeType}">
             </audio>
@@ -66,7 +69,11 @@
               <button class="podcast-action ${likedClass}" id="like-btn" onclick="toggleLike(${p.id})">
                 ${likedSymbol} <span id="like-count">${p.like_count || 0}</span>
               </button>
+              <button class="podcast-action ${favClass}" id="fav-btn" onclick="toggleFavorite(${p.id})">
+                ${favSymbol}
+              </button>
               <span class="podcast-action" style="cursor:default;">💬 <span>${p.comment_count || 0}</span></span>
+              <button class="podcast-action" onclick="sharePodcast(${p.id})">🔗 分享</button>
             </div>
           </div>`;
 
