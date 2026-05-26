@@ -21,12 +21,7 @@
 
     async function loadHot() {
       try {
-        const opts = {};
-        if (isLoggedIn()) opts.headers = { Authorization: `Bearer ${getToken()}` };
-        const res = await fetch("/api/podcasts/hot", opts);
-        const podcasts = await res.json();
-        if (!res.ok) throw new Error(podcasts.error);
-
+        const podcasts = await api("/api/podcasts/hot");
         const list = document.getElementById("hotList");
         if (podcasts.length === 0) {
           list.innerHTML = '<div class="card" style="text-align:center;padding:40px;color:var(--text-secondary);">暂无数据</div>';

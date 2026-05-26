@@ -58,7 +58,6 @@
 
         feed.innerHTML = data.rows.map(p => {
           const mimeType = getAudioType(p.audio_path);
-          const likedClass = p.liked ? "liked" : "";
           const likedSymbol = p.liked ? "♥" : "♡";
           return `
             <div class="card podcast-card">
@@ -66,12 +65,11 @@
                 <div class="podcast-title">${escapeHtml(p.title)}</div>
               </a>
               ${p.description ? `<div class="podcast-desc">${escapeHtml(p.description)}</div>` : ""}
+              ${renderCoverImage(p)}
               <audio controls class="podcast-audio" preload="none">
                 <source src="${p.audio_path}" type="${mimeType}">
               </audio>
-              <div style="font-size:14px;color:var(--text-secondary);">
-                ${likedSymbol} ${p.like_count || 0} · 💬 ${p.comment_count || 0} · ▶ ${p.plays || 0} 次播放
-              </div>
+              <div class="podcast-actions">${renderPodcastActions(p)}</div>
             </div>`;
         }).join("");
 

@@ -77,7 +77,10 @@
                 <audio controls class="podcast-audio" preload="none">
                   <source src="${p.audio_path}" type="${mimeType}">
                 </audio>
-                <div style="font-size:14px;color:var(--text-secondary);">♡ ${p.like_count || 0} · 💬 ${p.comment_count || 0}</div>
+                <div class="podcast-actions">
+                  <span class="podcast-action" style="cursor:default;">♡ ${p.like_count || 0}</span>
+                  <span class="podcast-action" style="cursor:default;">💬 ${p.comment_count || 0}</span>
+                </div>
               </div>`;
           }
           return `

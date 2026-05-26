@@ -20,6 +20,7 @@ const AUDIO_MAP = {
   ".mp3": "audio/mpeg", ".wav": "audio/wav", ".ogg": "audio/ogg",
   ".m4a": "audio/mp4", ".aac": "audio/aac", ".flac": "audio/flac",
 };
+const IMAGE_EXTS = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp"]);
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadsDir),
@@ -29,12 +30,17 @@ const storage = multer.diskStorage({
   },
 });
 
-const audioUpload = multer({
+const mixedUpload = multer({
   storage,
-  limits: { fileSize: 100 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    cb(AUDIO_MAP[ext] ? null : new Error("不支持的音频格式"), !!AUDIO_MAP[ext]);
+    if (file.fieldname === "audio") {
+      cb(AUDIO_MAP[ext] ? null : new Error("不支持的音频格式"), !!AUDIO_MAP[ext]);
+    } else if (file.fieldname === "cover") {
+      cb(IMAGE_EXTS.has(ext) ? null : new Error("不支持的图片格式"), IMAGE_EXTS.has(ext));
+    } else {
+      cb(null, false);
+    }
   },
 });
 
@@ -65,7 +71,7 @@ function attachUserState(data, token) {
 
 const router = Router();
 
-router.post("/", authMiddleware, audioUpload.fields([
+router.post("/", authMiddleware, mixedUpload.fields([
   { name: "audio", maxCount: 1 },
   { name: "cover", maxCount: 1 },
 ]), (req, res, next) => {
@@ -160,7 +166,11 @@ router.get("/:id", async (req, res, next) => {
     if (!podcast) {
       return res.status(404).json({ error: "播客不存在" });
     }
-    db.prepare("UPDATE podcasts SET plays = plays + 1 WHERE id = ?").run(req.params.id);
+    const ua = req.headers["user-agent"] || "";
+    const isBot = /bot|crawl|spider|slurp|mediapartners/i.test(ua);
+    if (!isBot) {
+      db.prepare("UPDATE podcasts SET plays = plays + 1 WHERE id = ?").run(req.params.id);
+    }
     const token = req.headers.authorization?.split(" ")[1];
     if (token) {
       try {
@@ -276,7 +286,7 @@ router.post("/:id/comments", authMiddleware, (req, res, next) => {
 
 router.delete("/:podcastId/comments/:commentId", authMiddleware, (req, res, next) => {
   try {
-    const ok = deleteComment(parseInt(req.params.commentId), req.user.id);
+    const ok = deleteComment(parseInt(req.params.commentId), req.user.id, req.user.role === "admin");
     if (!ok) {
       return res.status(403).json({ error: "无权删除此评论" });
     }

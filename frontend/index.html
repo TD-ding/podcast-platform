@@ -44,12 +44,7 @@
       try {
         let url = `/api/podcasts?page=${currentPage}&limit=10`;
         if (currentKeyword) url += `&keyword=${encodeURIComponent(currentKeyword)}`;
-        const opts = {};
-        if (isLoggedIn()) opts.headers = { Authorization: `Bearer ${getToken()}` };
-        const res = await fetch(url, opts);
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error);
-
+        const data = await api(url);
         const feed = document.getElementById("feed");
         const empty = document.getElementById("emptyState");
 
